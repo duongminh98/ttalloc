@@ -1,0 +1,20 @@
+# E5: chạy thật (PLAN mục 7.3, P4.T4). Qwen3-1.7B × MATH-500 × alpha = 0,5 × {B2, M2} × 3 seed = 6 lần chạy.
+# Chạy trên Vast (RTX 3090, bf16), qua config đã khóa:
+#   uv run ttalloc lock --exp configs/experiments/e5_online.yaml       -> configs/locked/e5_online_qwen3_1_7b.yaml [dừng]
+#   uv run ttalloc eval-test --exp configs/locked/e5_online_qwen3_1_7b.yaml --approved-by <tên>
+#   uv run ttalloc gate g3 --runs runs/<eval-test-e5_online...>
+# Lưới mở rộng (chỉ khi con người yêu cầu): alphas [0.3, 0.5, 0.7] và thêm lô mix_aime_math500 ở configs/batches.yaml.
+extends: e2_main.yaml
+name: e5_online_qwen3_1_7b
+kind: online
+splits: [test_main]
+alphas: [0.5]
+batch: {composition: mix, sources: {math500: 500}, seed: 0}
+methods:
+  - {id: B2, policy: deer, params: {lambda: tuned, cap: calibrated}}
+  - {id: M2, policy: price_adaptive, params: {mu_min: tuned, b_max_mult: tuned}}
+online:
+  seeds: [0, 1, 2]
+  max_active: null      # null: ước lượng từ dung lượng KV cache (online/timing.py)
+  calib_draws: 200
+sim: {draws: 200, seed: 20261104, workers: 4}

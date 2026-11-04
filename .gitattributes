@@ -1,0 +1,7 @@
+# Script chạy trên Linux (Vast, Kaggle) phải giữ LF kể cả khi checkout trên Windows (core.autocrlf=true).
+# Mọi tệp văn bản đều giữ LF để gói mã nguồn đẩy lên máy GPU giống hệt repo.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.parquet binary

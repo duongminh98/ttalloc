@@ -1,0 +1,6 @@
+name: amc23
+hf_id: math-ai/amc23
+split: test
+revision: 80815d37005feb82cd7f8fbc6901d5d3eff43057
+answer_type: math
+fields: {problem: question, gold: answer, id: id}

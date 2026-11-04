@@ -1,0 +1,14 @@
+# Bộ dữ liệu có kiểm soát truy cập: cần chấp nhận điều khoản trên Hugging Face và đặt HF_TOKEN.
+name: gpqa_diamond
+hf_id: Idavidrein/gpqa
+hf_configs: [gpqa_diamond]
+split: train
+revision: 83022cefff930aea54f654c0b282e74b9eeda5c6
+answer_type: choice
+gated: true
+fields:
+  problem: Question
+  gold: null
+  id: Record ID
+  correct: Correct Answer
+  incorrect: [Incorrect Answer 1, Incorrect Answer 2, Incorrect Answer 3]

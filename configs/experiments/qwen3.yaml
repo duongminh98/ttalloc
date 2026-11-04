@@ -1,0 +1,8 @@
+# Cấu hình chung cho model chính (Qwen3-1.7B). Dùng cho các lệnh ghi dữ liệu, học bộ ước lượng, dựng bảng và các study:
+#   uv run ttalloc log --exp configs/experiments/qwen3.yaml --split val --seeds 0-7
+# Các config thí nghiệm (g1, e2_main, e4/*, e5_online) đều kế thừa tệp này, nên dùng chung log_hash và bộ ước lượng.
+extends: ../base.yaml
+name: qwen3
+model: qwen3_1_7b
+# answer.mode chốt ở P1 bước chạy 4 (study answer-mode), ghi ADR rồi điền vào đây. null: LiveSource dùng `full`.
+answer: {mode: null}

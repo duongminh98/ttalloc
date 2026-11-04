@@ -1,0 +1,4 @@
+# Lời nhắc ép trả lời (PLAN mục 9.2, A1c). Token `</think>` được chèn bằng id, không tokenize từ chuỗi;
+# phần dưới đây là văn bản chèn sau token đó.
+full: "\n\n"
+short: "\n\nThe final answer is $\\boxed{"

@@ -1,0 +1,15 @@
+# Chỉnh tham số trên val (PLAN P3.T4, P3 bước chạy 3). Mỗi phương pháp cùng số cấu hình (tune.n_configs):
+#   uv run ttalloc tune --exp configs/experiments/tune_val.yaml
+# Kết quả: runs/<tune-...>/best.json. Điền đường dẫn thư mục đó vào `tuned_from` của e2_main.yaml rồi `ttalloc lock`.
+extends: qwen3.yaml
+name: tune_qwen3_1_7b
+run_seed: 0
+splits: [val]
+alphas: [0.2, 0.3, 0.4, 0.5, 0.7, 1.0]   # cùng lưới với E2; mục tiêu là độ chính xác trung bình trên lưới
+batch: {composition: all}
+methods:
+  - {id: B2, policy: deer, params: {cap: calibrated}}
+  - {id: M2, policy: price_adaptive}
+  - {id: M3, policy: price_adaptive, rho_provider: curve}
+tune: {n_configs: 50, draws: 20, seed: 0}
+sim: {seed: 20261104, calib_draws: 20}

@@ -1,0 +1,16 @@
+# Neo ở gốc repo: `data/` không neo sẽ bỏ qua cả src/ttalloc/data (mã nguồn).
+/data/
+/runs/
+/third_party/
+/reports/tmp/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.env
+kaggle.json
+ops/kaggle/_build/
+ops/vast/_state/

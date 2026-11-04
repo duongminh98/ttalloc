@@ -1,0 +1,6 @@
+name: aime_2025
+hf_id: MathArena/aime_2025
+split: train
+revision: c94da77eb22bbd6439e62a323bec18493a421302
+answer_type: math
+fields: {problem: problem, gold: answer, id: problem_idx}

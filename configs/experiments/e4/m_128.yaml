@@ -1,0 +1,9 @@
+# E4 ablation: Độ nhạy theo m (PLAN P3.T3, mục 7.3). So với M2 của E2 trên cùng các lần rút (cùng sim.seed).
+#   uv run ttalloc estimator train --exp configs/experiments/e4/m_128.yaml   (học lại theo mã băm)
+#   uv run ttalloc lock --exp configs/experiments/e4/m_128.yaml
+#   uv run ttalloc eval-test --exp configs/locked/e4_m_128_qwen3_1_7b.yaml --approved-by <tên>
+extends: ../e2_main.yaml
+name: e4_m_128_qwen3_1_7b
+methods:
+  - {id: M2, policy: price_adaptive, params: {mu_min: tuned, b_max_mult: tuned}}
+dp: {m: 128}

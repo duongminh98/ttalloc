@@ -1,0 +1,22 @@
+# Cổng G1 (PLAN P2, bước chạy 3; mục 7.4). Mô phỏng trên val với dữ liệu thăm dò, chưa chỉnh tham số:
+#   uv run ttalloc table build --exp configs/experiments/g1.yaml --split val
+#   uv run ttalloc sim run --exp configs/experiments/g1.yaml
+#   uv run ttalloc gate g1 --runs runs/<sim-g1...> --est-eval runs/<estimator-eval-val...>/eval.json \
+#       --validate data/logs/qwen3_1_7b/val/validate.json
+extends: qwen3.yaml
+name: g1_qwen3_1_7b
+run_seed: 0
+splits: [val]
+alphas: [0.2, 0.3, 0.4, 0.5]   # tiêu chí (b) của G1 chỉ xét alpha <= 0,5
+batches:
+  - {composition: all}
+  - {composition: balanced, n: 100}
+  - {composition: easy, n: 100}
+  - {composition: hard, n: 100}
+  - {composition: u, n: 100}
+methods:
+  # Chưa chỉnh tham số ở G1: lambda mặc định của DEER; mu_min khởi đầu 1e-5 (1 điểm phần trăm trên 1.000 token, ADR-011).
+  - {id: B2, policy: deer, params: {lambda: 0.95, cap: calibrated}}
+  - {id: M2, policy: price_adaptive, params: {mu_min: 1.0e-5}}
+  - {id: M3, policy: price_adaptive, rho_provider: curve, params: {mu_min: 1.0e-5}}
+sim: {draws: 200, seed: 20261104, workers: 4, calib_draws: 50}

@@ -1,0 +1,8 @@
+# E4 ablation: Chỉ một tầm H = {1k} (PLAN P3.T3, mục 7.3). So với M2 của E2 trên cùng các lần rút (cùng sim.seed).
+#   uv run ttalloc lock --exp configs/experiments/e4/one_horizon.yaml
+#   uv run ttalloc eval-test --exp configs/locked/e4_one_horizon_qwen3_1_7b.yaml --approved-by <tên>
+extends: ../e2_main.yaml
+name: e4_one_horizon_qwen3_1_7b
+methods:
+  - {id: M2, policy: price_adaptive, params: {mu_min: tuned, b_max_mult: tuned}}
+policy: {horizons: [1024]}

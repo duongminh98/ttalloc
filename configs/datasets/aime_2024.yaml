@@ -1,0 +1,6 @@
+name: aime_2024
+hf_id: HuggingFaceH4/aime_2024
+split: train
+revision: 2fe88a2f1091d5048c0f36abc874fb997b3dd99a
+answer_type: math
+fields: {problem: problem, gold: answer, id: id}

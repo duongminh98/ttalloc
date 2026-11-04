@@ -1,0 +1,14 @@
+# Model thứ hai, chỉ dùng nếu làm P5.T2. Tokenizer của model này có trong tests/fixtures để kiểm thử họ R1-Distill.
+name: r1_distill_qwen_1_5b
+hf_id: deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+revision: ad9f0ae0864d7fbcd1cd905e3c6c5b069cc8b562
+family: r1_distill
+enable_thinking: true
+think_end: "</think>"
+sampling:
+  temperature: 0.6
+  top_p: 0.95
+  top_k: -1
+probe_think_end_lookahead: 0
+deer_conf_mode: arith
+deer_require_think_end_after_probe: false

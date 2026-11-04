@@ -1,0 +1,14 @@
+# Lời nhắc theo repo DEER chính thức (PLAN mục 9.2), commit cố định:
+# https://github.com/iie-ycx/DEER/blob/c9dd19fbffa27f841cfe47502d015b63811b4d1b/vllm-deer-qwen3.py
+source_commit: c9dd19fbffa27f841cfe47502d015b63811b4d1b
+
+# DEER đặt hướng dẫn ở system message và đề bài ở user message (vllm-deer-qwen3.py#L228, #L282-L286; ADR-005).
+instruction_role: system
+instruction_math: "Please reason step by step, and put your final answer within \\boxed{}."
+instruction_choice: "Please reason step by step, and put the letter of the correct option within \\boxed{}."
+
+# Lời nhắc gợi đáp án thử, chèn ngay sau tiền tố của chuỗi chính (vllm-deer-qwen3.py#L255).
+probe_math: "\n**Final Answer**\n\\boxed"
+# DEER dùng biến thể riêng cho GPQA ("I believe the final answer, rather than the option, is \\boxed",
+# #L256-L257), mâu thuẫn với hướng dẫn ghi chữ cái của lựa chọn. Tạm dùng cùng lời nhắc với toán; chốt ở P1 (ADR-006).
+probe_choice: "\n**Final Answer**\n\\boxed"

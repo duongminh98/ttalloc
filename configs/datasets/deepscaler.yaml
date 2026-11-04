@@ -1,0 +1,6 @@
+name: deepscaler
+hf_id: agentica-org/DeepScaleR-Preview-Dataset
+split: train
+revision: b6ae8c60f5c1f2b594e2140b91c49c9ad0949e29
+answer_type: math
+fields: {problem: problem, gold: answer}

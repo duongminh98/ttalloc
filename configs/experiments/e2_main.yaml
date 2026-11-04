@@ -1,0 +1,18 @@
+# E1–E3 trên test_main (PLAN mục 7.3, 9.3). Chạy qua config đã khóa, có người duyệt (mục 7.5):
+#   1. điền `tuned_from` bằng thư mục chạy của `ttalloc tune --exp configs/experiments/tune_val.yaml`
+#   2. uv run ttalloc lock --exp configs/experiments/e2_main.yaml          -> configs/locked/e2_main_qwen3_1_7b.yaml [dừng]
+#   3. uv run ttalloc eval-test --exp configs/locked/e2_main_qwen3_1_7b.yaml --approved-by <tên>
+#   4. E1: uv run ttalloc estimator eval --split test_main --exp configs/locked/e2_main_qwen3_1_7b.yaml
+extends: qwen3.yaml
+name: e2_main_qwen3_1_7b
+run_seed: 0
+splits: [test_main]
+alphas: [0.2, 0.3, 0.4, 0.5, 0.7, 1.0]
+batch: {composition: all}
+methods:
+  - {id: B2, policy: deer, params: {lambda: tuned, cap: calibrated}}
+  - {id: M2, policy: price_adaptive, params: {mu_min: tuned, b_max_mult: tuned}}
+  - {id: M3, policy: price_adaptive, rho_provider: curve, params: {mu_min: tuned, b_max_mult: tuned}}
+  # P5.T1 thêm vào config mới, cùng sim.seed: B0, B1, M1, O1.
+tuned_from: null   # ví dụ runs/2026-11-20_1030_tune-tune_qwen3_1_7b_ab12cd
+sim: {draws: 200, seed: 20261104, workers: 4, calib_draws: 50}

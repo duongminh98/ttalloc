@@ -1,0 +1,7 @@
+# Tập sạch: ra đời sau Qwen3 (04/2025).
+name: aime_2026
+hf_id: MathArena/aime_2026
+split: train
+revision: d61f486805306e6e6b5913504c07763a99e1b112
+answer_type: math
+fields: {problem: problem, gold: answer, id: problem_idx}

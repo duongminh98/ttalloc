@@ -1,0 +1,6 @@
+name: math500
+hf_id: HuggingFaceH4/MATH-500
+split: test
+revision: 6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be
+answer_type: math
+fields: {problem: problem, gold: answer, id: unique_id, difficulty: level}

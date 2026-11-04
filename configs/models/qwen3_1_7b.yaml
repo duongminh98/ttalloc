@@ -1,0 +1,14 @@
+# Model chính (Ke-hoach-thuc-hien-de-tai.md mục 4.3).
+name: qwen3_1_7b
+hf_id: Qwen/Qwen3-1.7B
+revision: 70d244cc86ccca08cf5af4e1e306ecf908b1ad5e
+family: qwen3
+enable_thinking: true
+think_end: "</think>"
+sampling:
+  temperature: 0.6
+  top_p: 0.95
+  top_k: 20
+probe_think_end_lookahead: 3
+deer_conf_mode: geo
+deer_require_think_end_after_probe: true

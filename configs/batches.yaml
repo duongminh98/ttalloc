@@ -1,0 +1,9 @@
+# Thành phần lô (PLAN P2.T14). Dùng trong config thí nghiệm qua khóa `batch` hoặc `batches`, ví dụ
+#   batches: [{composition: all}, {composition: balanced, n: 100}]
+# Tỉ lệ theo mức 1–5 nằm trong src/ttalloc/data/batches.py (LEVEL_SHARES).
+all: {composition: all}
+balanced: {composition: balanced, n: 100}
+easy: {composition: easy, n: 100}
+hard: {composition: hard, n: 100}
+u: {composition: u, n: 100}
+mix_aime_math500: {composition: mix, sources: {aime_2024: 30, aime_2025: 30, math500: 100}}

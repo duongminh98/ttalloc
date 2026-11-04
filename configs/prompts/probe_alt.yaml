@@ -1,0 +1,8 @@
+# Mẫu lời nhắc gợi thứ hai, chỉ dùng cho `ttalloc study probe-noise` (P1.T10) để đo độ nhạy của đáp án thử với cách
+# diễn đạt. Lấy theo lời nhắc gợi của Dynasor-CoT. Các khóa khác giống deer.yaml; tệp này không dùng khi ghi dữ liệu.
+source_commit: c9dd19fbffa27f841cfe47502d015b63811b4d1b
+instruction_role: system
+instruction_math: "Please reason step by step, and put your final answer within \\boxed{}."
+instruction_choice: "Please reason step by step, and put the letter of the correct option within \\boxed{}."
+probe_math: "\n\nOh, I suddenly got the answer to the whole problem, **Final Answer**\n\n\\[ \\boxed{"
+probe_choice: "\n\nOh, I suddenly got the answer to the whole problem, **Final Answer**\n\n\\[ \\boxed{"

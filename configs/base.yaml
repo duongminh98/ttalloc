@@ -1,0 +1,116 @@
+# Giá trị mặc định (PLAN mục 9.1). Phải trùng với mặc định trong src/ttalloc/config.py (test_base_yaml_matches_defaults).
+name: base
+run_seed: 0
+kind: sim
+batches: []
+estimator_path: null         # null: bản mới nhất trong data/estimators/<model>/
+train_split: train
+ref_split: val
+
+engine:
+  dtype: bfloat16            # chốt ở P0 (bước chạy 2), ghi ADR; float16 chỉ khi buộc phải ghi trên T4
+  gpu_memory_utilization: 0.9
+  enable_prefix_caching: true
+  seed: 0
+
+dp:
+  markers: [Wait, Alternatively, Hmm, But, Let me check]
+  m: 256
+  l_max: 1024
+  b_min: 512
+
+log:
+  m: 128
+  l_max: 256
+  l_log: 32768
+  window: 256
+  flush_every: 64
+
+probe:
+  r_probe: 20
+  prompt: deer
+
+answer:
+  mode: null                 # chọn ở P1.T9: full hoặc short
+  r_ans: null                # null: 256 với full, 32 với short
+  on_stop: forced
+
+features:
+  k: 4
+  local_conf: true
+  local_window: 1024
+  drop_groups: []
+
+estimator:
+  h_train: [256, 512, 1024, 2048, 4096, 8192, 16384]
+  kind: lightgbm
+  calibrate: true
+  n_folds: 5
+  es_frac: 0.2
+  max_rounds: 2000
+  early_stopping: 100
+  seed: 0
+  lgb_params:
+    objective: binary
+    learning_rate: 0.05
+    num_leaves: 31
+    min_data_in_leaf: 50
+    feature_fraction: 0.9
+    bagging_fraction: 0.8
+    bagging_freq: 1
+    lambda_l2: 1.0
+    verbosity: -1
+  logreg_c: 1.0
+
+policy:
+  horizons: [512, 1024, 2048, 4096, 8192]
+  mu_min: null               # chỉnh trên val
+  b_max_mult: 3.0
+
+deer:
+  lambda: 0.95
+
+guard:
+  min_segment: 256
+
+sim:
+  draws: 200
+  seed: 0
+  max_active: null           # null: mọi câu của lô chạy cùng lúc
+  workers: 1
+  n_boot: 2000
+  calib_draws: 50            # số lần rút khi hiệu chỉnh hạn mức B2 (A11, ADR-011); null: mọi lần rút
+
+tune:
+  n_configs: 50
+  draws: 20
+  seed: 0
+  lambda_range: [0.80, 0.995]
+  mu_min_range: [1.0e-7, 3.0e-4]
+  b_max_mult_choices: [2.0, 3.0, 4.0]
+
+batch:
+  composition: all
+  n: null
+  sources: {}
+  seed: 0
+
+online:
+  max_active: null           # ước lượng từ dung lượng KV cache
+  seeds: [0, 1, 2]
+  max_num_seqs: null
+  calib_draws: 200
+
+baseline:
+  deer_repo: https://github.com/iie-ycx/DEER.git
+  deer_commit: c9dd19fbffa27f841cfe47502d015b63811b4d1b
+  paper_max_tokens: 16384
+  deer_think_ratio: 0.8      # theo bashes/bash-vllm-deer-qwen3.sh của repo DEER
+  deer_policy: avg2
+  throughput_batch_sizes: [8, 32, 128, 256]
+  throughput_max_tokens: 4096
+  chunk: 512
+
+study:
+  curves_delta: 0.2
+  probe_alt: probe_alt

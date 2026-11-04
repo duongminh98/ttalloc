@@ -1,0 +1,3 @@
+{"question": "What is 1+1?", "generated_responses": ["<think>\nSimple. 1+1=2.\n\n**Final Answer**\n\\boxed{2}\n</think>\n\nThe answer is $\\boxed{2}$."], "gold_answer": "2", "too_long": 0, "thinking_steps": 1, "rep_end": 0, "high_prob": 1, "regular_end": 0}
+{"question": "Compute 3*3.", "generated_responses": ["<think>\nHmm 3*3 = 6? Wait.\n</think>\n\nSo $\\boxed{6}$"], "gold_answer": "9", "too_long": 0, "thinking_steps": 2, "rep_end": 0, "high_prob": 0, "regular_end": 1}
+{"question": "Long one?", "generated_responses": ["<think>\nthinking forever\nSkipped answer generation due to length limit."], "gold_answer": "5", "too_long": 1, "thinking_steps": 10}

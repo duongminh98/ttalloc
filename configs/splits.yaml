@@ -1,0 +1,25 @@
+# Cách dựng các tập (PLAN mục 4.1; P0.T7). Các tập kiểm tra dựng trước, rồi tới val, cuối cùng là train;
+# mỗi tập sau loại mọi câu trùng với các tập đã dựng (khớp chính xác sau chuẩn hóa, rồi khớp 13-gram).
+seed: 20261103
+dedup:
+  ngram: 13
+  min_overlap: 0.5   # tỉ lệ 13-gram chung tối thiểu, tính trên câu ngắn hơn (ADR-009)
+order: [test_main, test_clean, test_ood, val, train]
+splits:
+  test_main:
+    - {dataset: math500}
+    - {dataset: aime_2024}
+    - {dataset: aime_2025}
+  test_clean:
+    - {dataset: aime_2026}
+    - {dataset: hmmt_feb_2026}
+  test_ood:
+    - {dataset: gpqa_diamond}
+  val:
+    - {dataset: amc23}
+    # Phân tầng đều theo mức 1–5 (ADR-003): 72 câu mỗi mức.
+    - {dataset: math_train, n: 360, stratify: difficulty}
+  train:
+    # Phân tầng đều theo mức 1–5 (ADR-003): 180 câu mỗi mức.
+    - {dataset: math_train, n: 900, stratify: difficulty}
+    - {dataset: deepscaler, n: 600}

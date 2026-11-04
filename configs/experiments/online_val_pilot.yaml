@@ -1,0 +1,9 @@
+# Chạy thật thử trên val trước khi chạy E5 (P4, kiểm tra trên GPU thật; không đưa vào khóa luận):
+#   uv run ttalloc online run --exp configs/experiments/online_val_pilot.yaml
+# Cần tuned_from như e2_main.yaml (kế thừa từ tệp đó). Một seed, 64 câu, B2 và M2.
+extends: e5_online.yaml
+name: online_val_pilot
+splits: [val]
+batch: {composition: all, n: 64, seed: 0}
+online: {seeds: [0], calib_draws: 50}
+sim: {draws: 50}

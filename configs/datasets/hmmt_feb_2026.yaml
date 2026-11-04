@@ -1,0 +1,7 @@
+# Tập sạch: 33 câu (kế hoạch ghi 60 câu cho cả test_clean; số thật là 30 + 33 = 63, xem ADR-004).
+name: hmmt_feb_2026
+hf_id: MathArena/hmmt_feb_2026
+split: train
+revision: 589a53fe152febc0f4f99f3e561007bf8da8e664
+answer_type: math
+fields: {problem: problem, gold: answer, id: problem_idx}
