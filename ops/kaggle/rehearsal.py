@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -128,19 +129,45 @@ STEPS: list[tuple[str, list[Arg], list[str]]] = [
 ]  # fmt: skip
 
 
+NOISE = re.compile(r"\d+%\|.*(it/s|s/it)\]")  # thanh tiến trình của vLLM/tqdm: chỉ lưu vào tệp, không in ra log
+ENV = {**os.environ, "PYTHONUNBUFFERED": "1"}
+
+
 def run(name: str, cmd: list[str], timeout: int, cwd: Path | None = None) -> bool:
+    """Chạy một bước, in đầu ra ngay khi có (log trực tiếp của Kaggle: `kaggle kernels logs -f`) và lưu đầy đủ.
+
+    Lần 1 của bản tập dượt gom đầu ra tới cuối bước, nên suốt 3 giờ của bước log không thấy được gì.
+    """
     print(f"=== {name}: {' '.join(cmd)}", flush=True)
     t0 = time.time()
+    lines: list[str] = []
+    proc = subprocess.Popen(
+        cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", env=ENV
+    )
+
+    def pump() -> None:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            lines.append(line)
+            if not NOISE.search(line):
+                print(line, end="", flush=True)
+
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
     try:
-        out = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
-        text, rc = out.stdout + out.stderr, out.returncode
-    except subprocess.TimeoutExpired as exc:
-        text, rc = f"timeout sau {exc.timeout}s", -1
+        rc = proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        rc = -1
+    reader.join(timeout=60)
+    text = "".join(lines) + (f"\ntimeout sau {timeout}s\n" if rc == -1 else "")
     steps = WORK / "steps"
     steps.mkdir(exist_ok=True)
     (steps / f"{name}.txt").write_text(text, encoding="utf-8")
     REPORT["steps"][name] = {"ok": rc == 0, "rc": rc, "seconds": round(time.time() - t0, 1), "tail": text[-3000:]}
-    print(text[-2500:], flush=True)
+    if rc != 0:
+        print(f"BƯỚC LỖI {name} rc={rc}", flush=True)
     save()
     return rc == 0
 

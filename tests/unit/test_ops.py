@@ -5,6 +5,8 @@ from __future__ import annotations
 import importlib.util
 import re
 import shlex
+import sys
+import time
 from pathlib import Path
 from types import ModuleType
 
@@ -115,6 +117,7 @@ def test_watch_rules_detect_and_diff() -> None:
     )
     assert rules.scan([resolver]) == []  # chỉ là cảnh báo xung đột với gói có sẵn (Kaggle, p1_gpu_tests lần 6)
     assert [h[0] for h in rules.scan(["ERROR: No matching distribution found for vllm==9"])] == ["pip"]
+    assert [h[0] for h in rules.scan(["BƯỚC LỖI log_val rc=-1"])] == ["step_failed"]
     assert rules.new_lines(["a", "b"], ["a", "b", "c"]) == ["c"]
     assert rules.new_lines(["a", "b", "c"], ["c", "d", "e"]) == ["d", "e"]  # cửa sổ đuôi đã trượt
     assert rules.new_lines([], ["x"]) == ["x"]
@@ -128,6 +131,36 @@ def test_kaggle_partial_log_parses(tmp_path: Path) -> None:
         encoding="utf-8",
     )  # kernel đang chạy: mảng chưa đóng
     assert push.log_lines(p) == ["=== a", "b"]
+
+
+def test_kaggle_live_log_reconnects_without_repeating() -> None:
+    push = _load("ops/kaggle/push.py")
+    # Mỗi lần kết nối, `kaggle kernels logs -f` phát lại từ đầu; ở đây luồng in 3 dòng rồi đóng (như bị ngắt).
+    live = push.LiveLog([sys.executable, "-c", "print('RUN_ID x'); print('a'); print('b')"])
+    got: list[str] = []
+    for _ in range(40):
+        got += live.fresh()
+        if len(got) >= 3:
+            break
+        time.sleep(0.1)
+    for _ in range(5):
+        got += live.fresh()  # các lần nối lại chỉ phát lại dòng cũ
+        time.sleep(0.2)
+    live.close()
+    assert got == ["RUN_ID x", "a", "b"]
+
+
+def test_rehearsal_streams_step_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    reh = _load("ops/kaggle/rehearsal.py")
+    monkeypatch.setattr(reh, "WORK", tmp_path)
+    code = "import sys; print('x'); print(' 50%|##   | 1/2 [00:01<00:01, 1.00it/s]'); sys.exit(3)"
+    assert not reh.run("s", [sys.executable, "-c", code], 60)
+    out = capsys.readouterr().out.split("\n", 1)[1]  # bỏ dòng "=== s: <lệnh>"
+    assert out == "x\nBƯỚC LỖI s rc=3\n"
+    assert "it/s" in (tmp_path / "steps" / "s.txt").read_text(encoding="utf-8")
+    assert reh.REPORT["steps"]["s"]["rc"] == 3
 
 
 def test_kaggle_run_id_injection(tmp_path: Path) -> None:

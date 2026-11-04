@@ -19,12 +19,14 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import threading
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILD = ROOT / "ops" / "kaggle" / "_build"
 DATASET_SLUG = "ttalloc-src"
+NOISE = re.compile(r"\d+%\|.*(it/s|s/it)\]")  # thanh tiến trình tqdm
 
 
 def kaggle(*args: str, check: bool = True) -> str:
@@ -143,6 +145,53 @@ def log_lines(path: Path) -> list[str]:
     return "".join(str(it.get("data", "")) for it in items).splitlines()
 
 
+class LiveLog:
+    """Log của phiên đang chạy qua `kaggle kernels logs -f` (`kernels output` chỉ có sau khi kernel xong).
+
+    Mỗi lần kết nối, CLI phát lại log từ đầu nên số thứ tự dòng không đổi; `fresh()` trả các dòng chưa trả, và nối lại
+    khi luồng bị ngắt.
+    """
+
+    def __init__(self, cmd: list[str]) -> None:
+        self.cmd = cmd
+        self.lines: list[str] = []  # lần kết nối hiện tại
+        self.emitted = 0
+        self.reader: threading.Thread | None = None
+        self.proc: subprocess.Popen[str] | None = None
+
+    def _connect(self) -> None:
+        lines: list[str] = []
+        self.lines = lines
+        proc = subprocess.Popen(
+            self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace"
+        )
+        self.proc = proc
+
+        def pump() -> None:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                lines.append(line.rstrip("\n"))
+
+        self.reader = threading.Thread(target=pump, daemon=True)
+        self.reader.start()
+
+    def fresh(self) -> list[str]:
+        out: list[str] = []
+        if self.reader is not None:
+            cur = list(self.lines)
+            out = cur[self.emitted :]
+            self.emitted = max(self.emitted, len(cur))
+            if not self.reader.is_alive():
+                self.reader = None
+        if self.reader is None:
+            self._connect()
+        return out
+
+    def close(self) -> None:
+        if self.proc is not None and self.proc.poll() is None:
+            self.proc.kill()
+
+
 def fetch(kernel: str, name: str) -> Path:
     out_dir = BUILD / f"out-{name}"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -165,7 +214,7 @@ def failed_steps(out_dir: Path, name: str, run_id: str | None = None) -> dict[st
 
 
 def wait_and_fetch(kernel: str, name: str, poll: int = 60, fail_fast: bool = False) -> int:
-    """Tải log và báo cáo mỗi `poll` giây ngay khi kernel đang chạy; in dòng log mới và bước lỗi.
+    """Theo log trực tiếp mỗi `poll` giây khi kernel đang chạy và in dòng mới; xong thì tải báo cáo, in bước lỗi.
 
     Mã thoát: 0 kernel xong và mọi bước đạt; 2 có bước lỗi; 4 log có dấu hiệu sự cố (với --fail-fast, kernel vẫn chạy
     tiếp trên Kaggle); 1 kernel lỗi hoặc bị hủy.
@@ -175,34 +224,38 @@ def wait_and_fetch(kernel: str, name: str, poll: int = 60, fail_fast: bool = Fal
 
     rid_file = RUN_ID_FILE(name)
     run_id = rid_file.read_text(encoding="utf-8").strip() if rid_file.exists() else None
-    prev: list[str] = []
-    seen_fail: set[str] = set()
-    while True:
-        status = kaggle("kernels", "status", kernel, check=False)
-        state = re.search(r"(complete|error|cancel\w*|running|queued)", status.lower())
-        out_dir = fetch(kernel, name)
-        cur = log_lines(out_dir / f"{kernel.split('/')[1]}.log")
-        current = run_id is None or any(f"RUN_ID {run_id}" in x for x in cur)
-        if not current:
-            cur = []  # output của phiên bản trước; phiên bản này chưa ghi gì
-        fresh = watch_rules.new_lines(prev, cur)
-        prev = cur
-        if fresh:
-            print("\n".join(fresh[-60:]))
-        fails = failed_steps(out_dir, name, run_id) if current else {}
-        for k in sorted(set(fails) - seen_fail):
-            print(f"!!! bước {k} lỗi: {fails[k][:400]}")
-        seen_fail |= set(fails)
-        print(f"--- {time.strftime('%H:%M:%S')} {status.strip()}", flush=True)
-        if state and state.group(1) not in ("running", "queued"):
-            done_ok = state.group(1) == "complete" and not fails
-            print(f"kết quả ở {out_dir}")
-            return 0 if done_ok else (2 if fails else 1)
-        if fail_fast and (fails or watch_rules.scan(fresh)):
-            for n, line in watch_rules.scan(fresh):
-                print(f"!!! {n}: {line}")
-            return 2 if fails else 4
-        time.sleep(poll)
+    exe = shutil.which("kaggle") or str(Path(sys.executable).with_name("kaggle"))
+    live = LiveLog([exe, "kernels", "logs", "-f", kernel])
+    current = run_id is None
+    try:
+        while True:
+            status = kaggle("kernels", "status", kernel, check=False)
+            state = re.search(r"(complete|error|cancel\w*|running|queued)", status.lower())
+            fresh = live.fresh()
+            if not current:  # bỏ log của phiên bản trước cho tới khi thấy mã lần chạy này
+                hit = [i for i, x in enumerate(fresh) if f"RUN_ID {run_id}" in x]
+                current = bool(hit)
+                fresh = fresh[hit[0] :] if hit else []
+            shown = [x for x in fresh if not NOISE.search(x)]
+            if shown:
+                print("\n".join(shown[-80:]))
+            print(f"--- {time.strftime('%H:%M:%S')} {status.strip()}", flush=True)
+            if state and state.group(1) not in ("running", "queued"):
+                out_dir = fetch(kernel, name)  # output (báo cáo, steps/, out/) chỉ có khi kernel đã xong
+                fails = failed_steps(out_dir, name, run_id)
+                for k in sorted(fails):
+                    print(f"!!! bước {k} lỗi: {fails[k][:400]}")
+                done_ok = state.group(1) == "complete" and not fails
+                print(f"kết quả ở {out_dir}")
+                return 0 if done_ok else (2 if fails else 1)
+            hits = watch_rules.scan(fresh)
+            if fail_fast and hits:
+                for n, line in hits:
+                    print(f"!!! {n}: {line}")
+                return 2 if any(n == "step_failed" for n, _ in hits) else 4
+            time.sleep(poll)
+    finally:
+        live.close()
 
 
 def main() -> None:

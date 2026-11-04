@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 
 RULES: list[tuple[str, re.Pattern[str]]] = [
+    ("step_failed", re.compile(r"^BƯỚC LỖI ")),  # ops/kaggle/rehearsal.py: một bước trả mã lỗi hoặc quá giờ
     ("traceback", re.compile(r"Traceback \(most recent call last\)")),
     ("ttalloc_error", re.compile(r"\bLỖI\b|BudgetExceeded|SimValidityError|LogHashMismatch|InfeasibleBudget")),
     ("oom", re.compile(r"CUDA out of memory|OutOfMemoryError|torch\.OutOfMemoryError|Killed\b")),
