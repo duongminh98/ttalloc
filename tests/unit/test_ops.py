@@ -86,6 +86,11 @@ def test_watch_rules_detect_and_diff() -> None:
     )
     assert [h[0] for h in hits] == ["traceback", "oom", "ttalloc_error"]
     assert rules.scan(["=== step", "xong 64 chuỗi"]) == []
+    resolver = (
+        "ERROR: pip's dependency resolver does not currently take into account all the packages that are installed."
+    )
+    assert rules.scan([resolver]) == []  # chỉ là cảnh báo xung đột với gói có sẵn (Kaggle, p1_gpu_tests lần 6)
+    assert [h[0] for h in rules.scan(["ERROR: No matching distribution found for vllm==9"])] == ["pip"]
     assert rules.new_lines(["a", "b"], ["a", "b", "c"]) == ["c"]
     assert rules.new_lines(["a", "b", "c"], ["c", "d", "e"]) == ["d", "e"]  # cửa sổ đuôi đã trượt
     assert rules.new_lines([], ["x"]) == ["x"]

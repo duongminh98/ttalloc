@@ -12,7 +12,9 @@ RULES: list[tuple[str, re.Pattern[str]]] = [
     ("ttalloc_error", re.compile(r"\bLỖI\b|BudgetExceeded|SimValidityError|LogHashMismatch|InfeasibleBudget")),
     ("oom", re.compile(r"CUDA out of memory|OutOfMemoryError|torch\.OutOfMemoryError|Killed\b")),
     ("cuda", re.compile(r"CUDA error|no kernel image is available|NCCL error")),
-    ("pip", re.compile(r"ERROR: (Could not|Package|No matching|pip's dependency resolver)")),
+    # Không bắt "ERROR: pip's dependency resolver does not currently take into account...": pip vẫn cài xong, chỉ
+    # liệt kê xung đột với gói có sẵn của Kaggle (numba, gradio...). Lần cài hỏng thật thì bước đó trả mã lỗi.
+    ("pip", re.compile(r"ERROR: (Could not|Package|No matching)")),
     ("disk", re.compile(r"No space left on device")),
 ]
 
