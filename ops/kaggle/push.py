@@ -199,6 +199,13 @@ def fetch(kernel: str, name: str) -> Path:
     return out_dir
 
 
+def report_run_id(out_dir: Path, name: str) -> str | None:
+    try:
+        return json.loads((out_dir / f"{name}.json").read_text(encoding="utf-8")).get("run_id")
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def failed_steps(out_dir: Path, name: str, run_id: str | None = None) -> dict[str, str]:
     report = out_dir / f"{name}.json"
     if not report.exists():
@@ -245,7 +252,16 @@ def wait_and_fetch(kernel: str, name: str, poll: int = 60, fail_fast: bool = Fal
                 print("\n".join(shown[-80:]))
             print(f"--- {time.strftime('%H:%M:%S')} {status.strip()}", flush=True)
             if state and state.group(1) not in ("running", "queued"):
-                out_dir = fetch(kernel, name)  # output (báo cáo, steps/, out/) chỉ có khi kernel đã xong
+                # Output (báo cáo, steps/, out/) chỉ có khi kernel đã xong, và có khi vài chục giây đầu vẫn là của bản
+                # trước (bản tập dượt lần 4: watcher tải báo cáo lần 3 rồi báo đạt). Chỉ tin báo cáo đúng RUN_ID.
+                for _ in range(10):
+                    out_dir = fetch(kernel, name)
+                    if report_run_id(out_dir, name) == run_id or run_id is None:
+                        break
+                    time.sleep(20)
+                else:
+                    print(f"!!! chưa tải được báo cáo của lần chạy {run_id}; xem {out_dir}")
+                    return 1
                 fails = failed_steps(out_dir, name, run_id)
                 for k in sorted(fails):
                     print(f"!!! bước {k} lỗi: {fails[k][:400]}")

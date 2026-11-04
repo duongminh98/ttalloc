@@ -223,6 +223,10 @@ def collect() -> None:
         if not src.exists():
             continue
         for p in src.rglob("*"):
+            # deer_out/ (đầu ra thô của mã DEER gốc) có đường dẫn > 260 ký tự: tải về Windows bị lỗi, mà phần CPU
+            # chạy lại không cần nó.
+            if "deer_out" in p.parts:
+                continue
             if p.is_file() and p.stat().st_size <= 50_000_000:
                 dst = out / p.relative_to(SRC)
                 dst.parent.mkdir(parents=True, exist_ok=True)
