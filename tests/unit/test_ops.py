@@ -59,6 +59,30 @@ def test_job_uses_existing_commands_and_configs(job: Path) -> None:
         assert "need_approval" in text or job.stem == "p3_log"  # P3 chỉ ghi dữ liệu, có [dừng] duyệt GPU
 
 
+def test_rehearsal_steps_use_existing_commands_and_cover_jobs() -> None:
+    reh = _load("ops/kaggle/rehearsal.py")
+    cmds = _commands()
+    seen: set[str] = set()
+    used: set[tuple[str, ...]] = set()
+    for name, args, needs in reh.STEPS:
+        assert set(needs) <= seen, f"{name}: bước cần {needs} phải đứng trước"
+        seen.add(name)
+        top = args[0]
+        assert top in cmds, f"{name}: lệnh lạ ttalloc {top}"
+        if cmds[top]:
+            assert args[1] in cmds[top], f"{name}: lệnh lạ ttalloc {top} {args[1]}"
+        used.add(tuple(args[:2]) if cmds[top] else (top,))
+        for i, a in enumerate(args):
+            if a == "--exp" and "configs/locked/" not in args[i + 1]:
+                assert (ROOT / args[i + 1]).exists(), f"{name}: không có {args[i + 1]}"
+            assert not (isinstance(a, str) and a.startswith("test")), f"{name}: tập dượt không chạm test_*"
+    # Mọi lệnh ttalloc mà các công việc Vast gọi đều được tập dượt.
+    for job in JOBS:
+        for argv in _calls(job.read_text(encoding="utf-8")):
+            key = tuple(argv[:2]) if cmds[argv[0]] else (argv[0],)
+            assert key in used, f"{job.name}: ttalloc {' '.join(key)} chưa có trong ops/kaggle/rehearsal.py"
+
+
 def test_vast_create_body_hides_key(monkeypatch: pytest.MonkeyPatch) -> None:
     vast = _load("ops/vast/vast.py")
     monkeypatch.setenv("HF_TOKEN", "hf_x")

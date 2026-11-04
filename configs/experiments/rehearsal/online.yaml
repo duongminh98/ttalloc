@@ -1,0 +1,13 @@
+# Tập dượt: đường lock -> eval-test của E5 (chạy thật trên GPU), nhưng trên 8 câu val, một seed.
+extends: base.yaml
+name: rehearsal_online
+kind: online
+splits: [val]
+alphas: [0.5]
+batch: {composition: all, n: 8, seed: 0}
+methods:
+  - {id: B2, policy: deer, params: {lambda: tuned, cap: calibrated}}
+  - {id: M2, policy: price_adaptive, params: {mu_min: tuned, b_max_mult: tuned}}
+tuned_from: null
+online: {seeds: [0], max_active: null, calib_draws: 5}
+sim: {draws: 5, seed: 1, workers: 1}

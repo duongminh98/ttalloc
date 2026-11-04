@@ -1,0 +1,16 @@
+# Tập dượt các công việc Vast trên Kaggle T4 (ops/kaggle/rehearsal.py). Chỉ để bắt lỗi trước khi thuê máy:
+# cỡ rất nhỏ, chỉ val và train, float16. Không sinh số liệu cho khóa luận; dữ liệu ghi bằng config này có log_hash
+# riêng nên không lẫn với dữ liệu thật.
+#   uv run --group ops python ops/kaggle/push.py rehearsal
+extends: ../qwen3.yaml
+name: rehearsal
+engine: {dtype: float16, gpu_memory_utilization: 0.85}
+answer: {mode: full}
+# Chuỗi ngắn để toàn bộ val (400 câu × 2 seed) ghi xong trong khoảng 15 phút trên T4. Cần ghi đủ val vì mô phỏng
+# và chạy thật dựng lô trên mọi câu của tập.
+log: {m: 128, l_max: 256, l_log: 1024}
+dp: {m: 128, l_max: 256, b_min: 128}
+guard: {min_segment: 256}
+estimator: {h_train: [256, 512]}
+policy: {horizons: [256, 512]}
+baseline: {paper_max_tokens: 2048, throughput_batch_sizes: [8, 32], throughput_max_tokens: 512}

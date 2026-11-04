@@ -1,0 +1,12 @@
+# Tập dượt: chỉnh tham số như tune_val.yaml nhưng nhỏ (ops/kaggle/rehearsal.py).
+extends: base.yaml
+name: rehearsal_tune
+splits: [val]
+alphas: [0.3, 0.5]
+batch: {composition: all}
+methods:
+  - {id: B2, policy: deer, params: {cap: calibrated}}
+  - {id: M2, policy: price_adaptive}
+  - {id: M3, policy: price_adaptive, rho_provider: curve}
+tune: {n_configs: 4, draws: 5, seed: 0}
+sim: {seed: 1, calib_draws: 5}

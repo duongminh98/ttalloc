@@ -1,0 +1,13 @@
+# Tập dượt: đường lock -> eval-test của E2 (mô phỏng), nhưng trên val. tuned_from đặt lúc khóa:
+#   ttalloc lock --exp configs/experiments/rehearsal/e2.yaml --set tuned_from=runs/<tune-rehearsal_tune...>
+extends: base.yaml
+name: rehearsal_e2
+splits: [val]
+alphas: [0.3, 0.5]
+batch: {composition: all}
+methods:
+  - {id: B2, policy: deer, params: {lambda: tuned, cap: calibrated}}
+  - {id: M2, policy: price_adaptive, params: {mu_min: tuned, b_max_mult: tuned}}
+  - {id: M3, policy: price_adaptive, rho_provider: curve, params: {mu_min: tuned, b_max_mult: tuned}}
+tuned_from: null
+sim: {draws: 20, seed: 1, workers: 2, calib_draws: 10}

@@ -1,0 +1,13 @@
+# Tập dượt: lưới mô phỏng như G1 nhưng nhỏ (ops/kaggle/rehearsal.py).
+extends: base.yaml
+name: rehearsal_sim
+splits: [val]
+alphas: [0.3, 0.5]
+batches:
+  - {composition: all}
+  - {composition: balanced, n: 100}
+methods:
+  - {id: B2, policy: deer, params: {lambda: 0.95, cap: calibrated}}
+  - {id: M2, policy: price_adaptive, params: {mu_min: 1.0e-5}}
+  - {id: M3, policy: price_adaptive, rho_provider: curve, params: {mu_min: 1.0e-5}}
+sim: {draws: 20, seed: 1, workers: 2, calib_draws: 10}
