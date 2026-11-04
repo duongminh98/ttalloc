@@ -258,6 +258,26 @@ def wait_and_fetch(kernel: str, name: str, poll: int = 60, fail_fast: bool = Fal
         live.close()
 
 
+def request_stop(name: str) -> None:
+    """Ghi RUN_ID của lần chạy gần nhất vào ops/kaggle/stop.txt rồi commit và push; kernel đọc tệp này mỗi phút.
+
+    API Kaggle chỉ hủy được phiên khi biết kernel_session_id, mà API không trả id của phiên đang chạy.
+    """
+    rid_file = RUN_ID_FILE(name)
+    if not rid_file.exists():
+        raise SystemExit(f"không có {rid_file}: chưa đẩy {name} từ máy này")
+    run_id = rid_file.read_text(encoding="utf-8").strip()
+    stop = ROOT / "ops" / "kaggle" / "stop.txt"
+    lines = stop.read_text(encoding="utf-8").splitlines() if stop.exists() else []
+    if run_id not in lines:
+        stop.write_text("\n".join([*lines, run_id]) + "\n", encoding="utf-8")
+    rel = stop.relative_to(ROOT).as_posix()
+    subprocess.run(["git", "add", rel], cwd=ROOT, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", f"Stop Kaggle run {run_id}", "--", rel], cwd=ROOT, check=False)
+    subprocess.run(["git", "push", "-q"], cwd=ROOT, check=False)
+    print(f"đã yêu cầu dừng {name} {run_id}; kernel sẽ dừng trong vài phút (raw.githubusercontent.com có thể trễ)")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("name", help="tên script trong ops/kaggle, ví dụ p0_smoke")
@@ -266,7 +286,11 @@ def main() -> None:
     ap.add_argument("--watch-only", action="store_true", help="không đẩy gì, chỉ theo dõi kernel đã đẩy")
     ap.add_argument("--fail-fast", action="store_true", help="thoát ngay khi có bước lỗi hoặc log có dấu hiệu sự cố")
     ap.add_argument("--poll", type=int, default=30)
+    ap.add_argument("--stop", action="store_true", help="yêu cầu lần chạy gần nhất tự dừng (ops/kaggle/stop.txt)")
     args = ap.parse_args()
+    if args.stop:
+        request_stop(args.name)
+        return
     user = kaggle_user()
     kernel = f"{user}/ttalloc-{args.name.replace('_', '-')}"
     if not args.watch_only:

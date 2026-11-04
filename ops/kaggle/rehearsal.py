@@ -21,6 +21,7 @@ import tarfile
 import tempfile
 import threading
 import time
+import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -131,6 +132,26 @@ STEPS: list[tuple[str, list[Arg], list[str]]] = [
 
 NOISE = re.compile(r"\d+%\|.*(it/s|s/it)\]")  # thanh tiến trình của vLLM/tqdm: chỉ lưu vào tệp, không in ra log
 ENV = {**os.environ, "PYTHONUNBUFFERED": "1"}
+# API Kaggle không cho hủy phiên đang chạy khi không biết kernel_session_id (CLI không có lệnh hủy, và đẩy bản mới thì
+# bản cũ vẫn chạy song song). Nên kernel tự đọc tệp này trên repo công khai; `push.py <tên> --stop` ghi RUN_ID vào đó.
+STOP_URL = "https://raw.githubusercontent.com/duongminh98/ttalloc/main/ops/kaggle/stop.txt"
+STOP = threading.Event()
+
+
+def stop_requested(text: str) -> bool:
+    return RUN_ID is not None and any(line.strip() == RUN_ID for line in text.splitlines())
+
+
+def watch_stop(every: int = 60) -> None:
+    while not STOP.is_set():
+        try:
+            with urllib.request.urlopen(f"{STOP_URL}?t={int(time.time())}", timeout=20) as r:
+                if stop_requested(r.read().decode("utf-8", "replace")):
+                    print(f"YÊU CẦU DỪNG cho {RUN_ID}: dừng bước đang chạy, gom kết quả rồi thoát", flush=True)
+                    STOP.set()
+        except Exception:  # mạng chập chờn: thử lại lần sau
+            pass
+        STOP.wait(every)
 
 
 def run(name: str, cmd: list[str], timeout: int, cwd: Path | None = None) -> bool:
@@ -154,14 +175,19 @@ def run(name: str, cmd: list[str], timeout: int, cwd: Path | None = None) -> boo
 
     reader = threading.Thread(target=pump, daemon=True)
     reader.start()
-    try:
-        rc = proc.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait()
-        rc = -1
+    deadline = t0 + timeout
+    while True:
+        try:
+            rc = proc.wait(timeout=5)
+            break
+        except subprocess.TimeoutExpired:
+            if STOP.is_set() or time.time() > deadline:
+                proc.kill()
+                proc.wait()
+                rc = -2 if STOP.is_set() else -1
+                break
     reader.join(timeout=60)
-    text = "".join(lines) + (f"\ntimeout sau {timeout}s\n" if rc == -1 else "")
+    text = "".join(lines) + {-1: f"\ntimeout sau {timeout}s\n", -2: "\ndừng theo yêu cầu\n"}.get(rc, "")
     steps = WORK / "steps"
     steps.mkdir(exist_ok=True)
     (steps / f"{name}.txt").write_text(text, encoding="utf-8")
@@ -209,6 +235,7 @@ def collect() -> None:
 
 def main() -> None:
     print(f"RUN_ID {RUN_ID}", flush=True)
+    threading.Thread(target=watch_stop, daemon=True).start()
     py = sys.executable
     run("gpu_info", ["nvidia-smi"], 60)
     src = find_source()
@@ -219,6 +246,9 @@ def main() -> None:
     if ok:
         passed: set[str] = set()
         for name, args, needs in STEPS:
+            if STOP.is_set():
+                REPORT["steps"][name] = {"ok": False, "rc": None, "skipped": "dừng theo yêu cầu"}
+                continue
             missing = [n for n in needs if n not in passed]
             if missing:
                 REPORT["steps"][name] = {"ok": False, "rc": None, "skipped": f"cần {missing}"}

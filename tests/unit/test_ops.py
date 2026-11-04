@@ -161,6 +161,15 @@ def test_rehearsal_streams_step_output(
     assert out == "x\nBƯỚC LỖI s rc=3\n"
     assert "it/s" in (tmp_path / "steps" / "s.txt").read_text(encoding="utf-8")
     assert reh.REPORT["steps"]["s"]["rc"] == 3
+    monkeypatch.setattr(reh, "RUN_ID", "R7")
+    assert reh.stop_requested("# chú thích\nR6\nR7\n") and not reh.stop_requested("R70\n")
+    reh.STOP.set()  # yêu cầu dừng: bước đang chạy bị ngắt ngay
+    try:
+        t0 = time.time()
+        assert not reh.run("long", [sys.executable, "-c", "import time; time.sleep(60)"], 600)
+        assert reh.REPORT["steps"]["long"]["rc"] == -2 and time.time() - t0 < 30
+    finally:
+        reh.STOP.clear()
 
 
 def test_kaggle_run_id_injection(tmp_path: Path) -> None:
