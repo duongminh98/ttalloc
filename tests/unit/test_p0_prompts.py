@@ -20,6 +20,19 @@ def test_r1_prompt_ends_with_think(r1_tokenizer: Any) -> None:
     assert ids.count(r1_tokenizer.bos_token_id) == 1  # không lặp BOS
 
 
+def test_tokenizers_roundtrip_and_vllm_gets_a_working_one(fixtures_dir: Any) -> None:
+    from transformers import AutoTokenizer
+
+    from ttalloc.context import load_tokenizer, tokenizer_roundtrip_ok, vllm_tokenizer_dir
+
+    for name in ("qwen3_1_7b", "r1_distill_qwen_1_5b"):
+        cfg, path = load_model_cfg(name), fixtures_dir / "tokenizers" / name
+        assert tokenizer_roundtrip_ok(load_tokenizer(cfg, path)), name
+        # vLLM nạp bằng AutoTokenizer; nếu cách đó hỏng (R1 với transformers 5.16–5.19) thì phải có thư mục đã sửa.
+        d = vllm_tokenizer_dir(cfg, path)
+        assert tokenizer_roundtrip_ok(AutoTokenizer.from_pretrained(d or path)), name
+
+
 def test_qwen3_prompt_has_thinking(qwen3_tokenizer: Any) -> None:
     cfg = load_model_cfg("qwen3_1_7b")
     prompts = load_prompts()

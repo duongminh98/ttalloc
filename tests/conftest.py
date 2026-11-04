@@ -19,13 +19,16 @@ def fixtures_dir() -> Path:
 
 @pytest.fixture(scope="session")
 def qwen3_tokenizer():  # type: ignore[no-untyped-def]
-    from transformers import AutoTokenizer
+    from ttalloc.config import load_model_cfg
+    from ttalloc.context import load_tokenizer
 
-    return AutoTokenizer.from_pretrained(FIXTURES / "tokenizers" / "qwen3_1_7b")
+    return load_tokenizer(load_model_cfg("qwen3_1_7b"), FIXTURES / "tokenizers" / "qwen3_1_7b")
 
 
 @pytest.fixture(scope="session")
 def r1_tokenizer():  # type: ignore[no-untyped-def]
-    from transformers import AutoTokenizer
+    # Qua đúng hàm nạp của mã chính, để test bắt được lỗi tokenizer theo phiên bản transformers (ADR-013).
+    from ttalloc.config import load_model_cfg
+    from ttalloc.context import load_tokenizer
 
-    return AutoTokenizer.from_pretrained(FIXTURES / "tokenizers" / "r1_distill_qwen_1_5b")
+    return load_tokenizer(load_model_cfg("r1_distill_qwen_1_5b"), FIXTURES / "tokenizers" / "r1_distill_qwen_1_5b")

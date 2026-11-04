@@ -336,7 +336,7 @@ dependencies = [
     { name = "loguru" },
     { name = "pydantic" },
     { name = "torch" },
-    { name = "transformers", version = "5.19.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "transformers" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2c/9e/d7f18bd9a0354088abc11a0c1f2c7698f7c49e5a709faedf6a46e388f693/compressed_tensors-0.17.0.tar.gz", hash = "sha256:15c20d06bdbcf35b51fc99fd125e7b9be1e1855567c33b7a46dfac26ad6fb126", size = 257091, upload-time = "2026-06-03T16:49:17.208Z" }
 wheels = [
@@ -3186,12 +3186,10 @@ wheels = [
 name = "transformers"
 version = "5.19.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "platform_machine == 'x86_64' and sys_platform == 'linux'",
-]
 dependencies = [
     { name = "huggingface-hub" },
-    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'win32'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'win32'" },
     { name = "packaging" },
     { name = "pyyaml" },
     { name = "regex" },
@@ -3203,29 +3201,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/65/4c/70012ed0795235fb6bd7806fafd4a1842f03e49ebbfa3bb9580e451948ce/transformers-5.19.0.tar.gz", hash = "sha256:87f38dd25e4521151b97e94520ac457f44a0ae8a8358a5b112daff6c64a822d6", size = 10032022, upload-time = "2026-10-06T16:39:00.229Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b9/59/1e7f1212c215c73690ae6cab4678efe1555ff985953e145d88cc212859b0/transformers-5.19.0-py3-none-any.whl", hash = "sha256:afcd2dd5f603ed28c1e1fcb00a338ccbb4ef5f878ed289635df8b58187afb518", size = 12599123, upload-time = "2026-10-06T16:38:56.794Z" },
-]
-
-[[package]]
-name = "transformers"
-version = "5.22.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'win32'",
-]
-dependencies = [
-    { name = "huggingface-hub" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" } },
-    { name = "packaging" },
-    { name = "pyyaml" },
-    { name = "regex" },
-    { name = "safetensors" },
-    { name = "tokenizers" },
-    { name = "tqdm" },
-    { name = "typer" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/17/d6/a610b37bbc3450c056ea68c7f5016d06da8e787c1ac32b20ce58d18a1eb0/transformers-5.22.1.tar.gz", hash = "sha256:bed9fd76d6f43b4a1a9fc5d0c565ace7c77edbd029784f8cbcdf772cb5e924d8", size = 10381794, upload-time = "2026-10-30T07:48:03.721Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/75/47ebe0e2f1b04a180000e3a49ebdf4669dbab0c63489bcecf7855c26e4f4/transformers-5.22.1-py3-none-any.whl", hash = "sha256:c940b4bf98de4f568723895f330ba1460a398bd83061b93b70238c3fe32e4389", size = 13051755, upload-time = "2026-10-30T07:47:59.888Z" },
 ]
 
 [[package]]
@@ -3264,8 +3239,7 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "statsmodels" },
-    { name = "transformers", version = "5.19.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'win32'" },
-    { name = "transformers", version = "5.22.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'win32'" },
+    { name = "transformers" },
     { name = "typer" },
 ]
 
@@ -3306,7 +3280,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.5" },
     { name = "scipy", specifier = ">=1.14" },
     { name = "statsmodels", specifier = ">=0.14" },
-    { name = "transformers", specifier = ">=4.51" },
+    { name = "transformers", specifier = ">=5.16.1,<5.20" },
     { name = "typer", specifier = ">=0.12" },
     { name = "vllm", marker = "sys_platform == 'linux' and extra == 'gpu'", specifier = "==0.32.0" },
 ]
@@ -3562,7 +3536,7 @@ dependencies = [
     { name = "torchcodec" },
     { name = "torchvision" },
     { name = "tqdm" },
-    { name = "transformers", version = "5.19.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "transformers" },
     { name = "typing-extensions" },
     { name = "watchfiles" },
     { name = "xgrammar" },
@@ -3638,7 +3612,7 @@ dependencies = [
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" } },
     { name = "pydantic" },
     { name = "torch" },
-    { name = "transformers", version = "5.19.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "transformers" },
     { name = "triton" },
     { name = "typing-extensions" },
 ]

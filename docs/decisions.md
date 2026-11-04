@@ -103,3 +103,16 @@ Mỗi chỗ lệch đặc tả, mâu thuẫn hoặc chỗ chưa rõ được ghi
   - Bất biến I1 và việc câu mới nạp không bị bỏ đói vẫn giữ nguyên, có test hypothesis ở `test_p2_controller_policies.py`.
   - Chi tiêu của B2 sát B hơn, nên so sánh M2 với B2 không còn thiên lệch do quỹ bị bỏ phí.
   - Mã lệch so với mã mẫu ở A8, nên reviewer cần xem kỹ phần này.
+
+## ADR-013: Tokenizer của R1-Distill hỏng với transformers 5.16–5.19
+- Task: P0.T8, P1.T4
+- Bối cảnh:
+  - vLLM 0.32.0 yêu cầu `transformers>=5.16.1,<5.20`. Trên Kaggle, pip cài bản trong khoảng này; máy cá nhân lúc đó dùng 5.22.1 nên test CPU vẫn đạt.
+  - `tokenizer_config.json` của DeepSeek-R1-Distill-Qwen-1.5B khai `LlamaTokenizerFast`, trong khi `tokenizer.json` là ByteLevel. Với 5.16–5.19, `AutoTokenizer` dựng ra một `LlamaTokenizer` hỏng: mất dấu cách và tách chữ thành từng mẩu ("Please" thành 4 token). Bản 5.22 tự nhận ra lỗi này và chuyển sang `TokenizersBackend`.
+  - Lần chạy 3 của `p1_gpu_tests` (04/11/2026) bắt được lỗi ở `test_r1_prompt_ends_with_think`.
+  - vLLM giải mã đầu ra và so stop string bằng tokenizer riêng, nạp theo cùng cách. Nếu tokenizer hỏng, marker của R1 sẽ không bao giờ khớp mà không có báo lỗi nào. Qwen3-1.7B (model chính) không bị ảnh hưởng.
+- Quyết định:
+  - `load_tokenizer` mã hóa rồi giải mã lại một câu mẫu. Nếu không khớp thì nạp lại bằng `PreTrainedTokenizerFast`, tức đọc thẳng `tokenizer.json`. Vẫn không khớp thì báo lỗi.
+  - `VllmGenerator` làm cùng phép kiểm tra trên cách vLLM sẽ nạp. Nếu hỏng thì lưu tokenizer đã sửa ra một thư mục tạm và truyền cho vLLM qua `tokenizer=`. Sau khi khởi tạo, kiểm tra lại `llm.get_tokenizer()` và dừng nếu vẫn sai.
+  - `pyproject.toml` chốt `transformers>=5.16.1,<5.20` cho khớp với vLLM 0.32.0, để test CPU chạy đúng phiên bản như trên GPU. Fixture tokenizer trong test đi qua `load_tokenizer` của mã chính.
+- Hệ quả: dãy token của R1 giờ giống hệt bản 5.22 (đã kiểm tra trên 5.16.1 và 5.19.0, kể cả chat template). Khi dùng R1-Distill ở P5, chạy `tests/gpu` với model đó để xác nhận stop string của vLLM khớp.

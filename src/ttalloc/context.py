@@ -26,12 +26,47 @@ class ModelContext:
     prompts: PromptSet
 
 
+_ROUNDTRIP_PROBE = "Please reason step by step.\n<think>\n"
+
+
+def tokenizer_roundtrip_ok(tok: Any) -> bool:
+    """Mã hóa rồi giải mã một câu mẫu có dấu cách, xuống dòng và `<think>`; tokenizer dựng sai thì không khớp."""
+    ids = tok.encode(_ROUNDTRIP_PROBE, add_special_tokens=False)
+    return bool(tok.decode(ids) == _ROUNDTRIP_PROBE)
+
+
 def load_tokenizer(model_cfg: ModelCfg, path: str | Path | None = None) -> Any:
+    from transformers import AutoTokenizer, PreTrainedTokenizerFast
+
+    src = str(path) if path is not None else model_cfg.hf_id
+    kw: dict[str, Any] = {} if path is not None else {"revision": model_cfg.revision}
+    tok = AutoTokenizer.from_pretrained(src, **kw)
+    if tokenizer_roundtrip_ok(tok):
+        return tok
+    # transformers 5.16–5.19 (khoảng vLLM 0.32.0 yêu cầu) dựng tokenizer ByteLevel khai `LlamaTokenizerFast`
+    # (R1-Distill) thành LlamaTokenizer hỏng, mất dấu cách. Đọc thẳng tokenizer.json thì đúng (ADR-013).
+    tok = PreTrainedTokenizerFast.from_pretrained(src, **kw)
+    if not tokenizer_roundtrip_ok(tok):
+        raise RuntimeError(f"tokenizer của {src} không mã hóa rồi giải mã lại đúng câu mẫu")
+    return tok
+
+
+def vllm_tokenizer_dir(model_cfg: ModelCfg, path: str | Path | None = None) -> str | None:
+    """Thư mục tokenizer đã sửa để đưa cho vLLM, hoặc None nếu AutoTokenizer (cách vLLM tự nạp) đã đúng.
+
+    vLLM giải mã đầu ra và so stop string bằng tokenizer riêng của nó; tokenizer hỏng làm marker không bao giờ khớp.
+    """
+    import tempfile
+
     from transformers import AutoTokenizer
 
-    if path is not None:
-        return AutoTokenizer.from_pretrained(path)
-    return AutoTokenizer.from_pretrained(model_cfg.hf_id, revision=model_cfg.revision)
+    src = str(path) if path is not None else model_cfg.hf_id
+    kw: dict[str, Any] = {} if path is not None else {"revision": model_cfg.revision}
+    if tokenizer_roundtrip_ok(AutoTokenizer.from_pretrained(src, **kw)):
+        return None
+    out = tempfile.mkdtemp(prefix="ttalloc-tok-")
+    load_tokenizer(model_cfg, path).save_pretrained(out)
+    return out
 
 
 def model_context(cfg: ExperimentCfg, model: str | None = None, tokenizer: Any = None) -> ModelContext:

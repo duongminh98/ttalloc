@@ -11,7 +11,8 @@ dependencies = [
     "pydantic>=2.8",
     "pyyaml>=6.0",
     "typer>=0.12",
-    "transformers>=4.51",
+    # Cùng khoảng vLLM 0.32.0 yêu cầu, để test CPU chạy đúng phiên bản như trên GPU (ADR-013).
+    "transformers>=5.16.1,<5.20",
     "jinja2>=3.1",
     "datasets>=3.0",
     "math-verify>=0.7",

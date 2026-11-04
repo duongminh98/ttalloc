@@ -19,7 +19,7 @@
 | P0, bước chạy 3 | xong | | 04/11/2026: `splits build` đủ 5 tập (train 1.500, val 400, test_main 560, test_clean 63 theo ADR-004, test_ood 198); `splits verify` OK. Người dùng duyệt khóa ID. Tệp chỉ chứa ID, không có nội dung câu hỏi |
 | P0a (review) | chưa | | |
 | P1.T1–T3 | mã xong | | Generator, ScriptedGenerator, cắt đoạn có peek (ADR-010) |
-| P1.T4 | mã xong | | VllmGenerator; test GPU ở `tests/gpu` chưa chạy (Kaggle `p1_gpu_tests`, Vast `gpu_check`) |
+| P1.T4 | mã xong | | VllmGenerator. 04/11/2026: Kaggle `p1_gpu_tests` trên T4 (float16) đạt 7/7 test GPU; lần 3 bắt lỗi tokenizer R1 theo phiên bản transformers (ADR-013). Vast `gpu_check` (bf16) chưa chạy |
 | P1.T5 | mã xong | | `baseline full/deer/throughput`; DEER đếm token bằng tokenize lại (ADR-010) |
 | P1.T6 | mã xong | | `equivalence` |
 | P1.T7–T11 | mã xong | | LiveSource, logger chạy tiếp được, study answer-mode/probe-noise, validate-logs |

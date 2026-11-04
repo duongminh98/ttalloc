@@ -28,12 +28,20 @@ class VllmGenerator:
             "gpu_memory_utilization": engine_cfg.gpu_memory_utilization,
             "seed": engine_cfg.seed,
         }
+        from ttalloc.context import tokenizer_roundtrip_ok, vllm_tokenizer_dir
+
+        tok_dir = vllm_tokenizer_dir(model_cfg, model_path)
         if model_path is None and model_cfg.revision:
             kwargs["revision"] = model_cfg.revision
-            kwargs["tokenizer_revision"] = model_cfg.revision
+            if tok_dir is None:
+                kwargs["tokenizer_revision"] = model_cfg.revision
+        if tok_dir is not None:
+            kwargs["tokenizer"] = tok_dir
         if max_num_seqs is not None:
             kwargs["max_num_seqs"] = int(max_num_seqs)
         self.llm = LLM(**kwargs)
+        if not tokenizer_roundtrip_ok(self.llm.get_tokenizer()):
+            raise RuntimeError("tokenizer của vLLM không giải mã đúng câu mẫu; stop string sẽ không khớp (ADR-013)")
         self.n_generated = 0
         self.n_prompt = 0
 
