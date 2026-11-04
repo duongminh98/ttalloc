@@ -2,7 +2,9 @@
 extends: base.yaml
 name: rehearsal_tune
 splits: [val]
-alphas: [0.3, 0.5]
+# α ≥ 0.5: với chuỗi ≤ 1.024 token, α = 0.3 cho B = 150.546 < phần dự trữ 400 × (258 + 128 + 30) = 166.400
+# (InfeasibleBudget, bản tập dượt lần 1). Lưới thật có chuỗi dài nên không gặp.
+alphas: [0.5, 0.8]
 batch: {composition: all}
 methods:
   - {id: B2, policy: deer, params: {cap: calibrated}}
