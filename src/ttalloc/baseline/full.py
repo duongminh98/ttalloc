@@ -37,9 +37,26 @@ def require_approval(
         return
     if not approved_by:
         raise ApprovalRequired(f"{command} trên {split} cần --approved-by <tên> (PLAN mục 7.5)")
+    append_test_log(command, split, "—", approved_by, detail, log_path)
+
+
+def repo_rel(p: Path) -> str:
+    try:
+        return p.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+    except ValueError:
+        return p.as_posix()
+
+
+def append_test_log(
+    command: str, split: str, config_hash: str, approved_by: str, note: str, log_path: Path = TEST_LOG
+) -> None:
+    """Một dòng của docs/test-log.md, đúng 6 cột của bảng: Ngày | Lệnh | Tập | Mã băm config | Người duyệt | Ghi chú.
+
+    Trước đây lock ghi 5 cột và eval-test ghi 7 cột, lệch với tiêu đề bảng (bản tập dượt lần 1)."""
     stamp = dt.datetime.now().astimezone().isoformat(timespec="seconds")
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(f"| {stamp} | {command} | {split} | {approved_by} | {detail} |\n")
+    cells = [stamp, command, split, config_hash, approved_by, note]
+    with log_path.open("a", encoding="utf-8", newline="\n") as f:
+        f.write("| " + " | ".join(c.replace("|", "/") for c in cells) + " |\n")
 
 
 @dataclass(frozen=True)

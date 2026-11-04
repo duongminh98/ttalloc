@@ -23,7 +23,7 @@ from ttalloc.eval.report import build_report
 from ttalloc.eval.stats import acceptance_band, mcnemar_test, paired_bootstrap
 from ttalloc.features.curve import EmpiricalCurves
 from ttalloc.features.extract import FeatureState, feature_names
-from ttalloc.locking import NotLocked, check_locked, lock
+from ttalloc.locking import NotLocked, check_locked, lock, record_eval
 from ttalloc.logging.store import LogHashMismatch, LogStore
 from ttalloc.sim.env import SimEnv
 from ttalloc.sim.logged_source import LoggedSource, load_logged
@@ -418,4 +418,8 @@ def test_eval_test_refuses_unlocked_or_mismatch(tmp_path: Path) -> None:
         check_locked(locked.model_copy(update={"run_seed": 7}), "minh", tmp_path / "locked")
     with pytest.raises(FileExistsError):
         lock(cfg, tmp_path / "locked", log)
-    assert "lock | lock_test" in log.read_text(encoding="utf-8")
+    text = log.read_text(encoding="utf-8")
+    assert "| lock lock_test | test_main |" in text
+    record_eval(locked, check_locked(locked, "minh", tmp_path / "locked"), "minh", tmp_path / "run", log)
+    rows = log.read_text(encoding="utf-8").splitlines()
+    assert len(rows) == 2 and all(r.count(" | ") == 5 for r in rows)  # đúng 6 cột như tiêu đề bảng

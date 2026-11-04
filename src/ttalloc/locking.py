@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import datetime as dt
 from pathlib import Path
 
 import yaml
 
-from ttalloc.baseline.full import TEST_LOG
+from ttalloc.baseline.full import TEST_LOG, append_test_log, repo_rel
 from ttalloc.config import CONFIGS_DIR, ExperimentCfg, config_hash, config_to_dict, load_config
 
 LOCKED_DIR = CONFIGS_DIR / "locked"
@@ -15,12 +14,6 @@ LOCKED_DIR = CONFIGS_DIR / "locked"
 
 class NotLocked(PermissionError):
     pass
-
-
-def _log(line: str, log_path: Path) -> None:
-    stamp = dt.datetime.now().astimezone().isoformat(timespec="seconds")
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(f"| {stamp} | {line} |\n")
 
 
 def lock(cfg: ExperimentCfg, locked_dir: Path = LOCKED_DIR, log_path: Path = TEST_LOG) -> Path:
@@ -37,7 +30,7 @@ def lock(cfg: ExperimentCfg, locked_dir: Path = LOCKED_DIR, log_path: Path = TES
     h = config_hash(cfg)
     path.write_text(yaml.safe_dump(config_to_dict(cfg), sort_keys=False, allow_unicode=True), encoding="utf-8")
     path.with_suffix(".sha").write_text(h + "\n", encoding="utf-8")
-    _log(f"lock | {cfg.name} | {h} | {path.as_posix()}", log_path)
+    append_test_log(f"lock {cfg.name}", ",".join(cfg.splits), h, "—", repo_rel(path), log_path)
     return path
 
 
@@ -60,4 +53,4 @@ def check_locked(cfg: ExperimentCfg, approved_by: str | None, locked_dir: Path =
 
 
 def record_eval(cfg: ExperimentCfg, h: str, approved_by: str, run_dir: Path, log_path: Path = TEST_LOG) -> None:
-    _log(f"eval-test | {cfg.name} | {h} | {','.join(cfg.splits)} | {approved_by} | {run_dir.as_posix()}", log_path)
+    append_test_log(f"eval-test {cfg.name}", ",".join(cfg.splits), h, approved_by, repo_rel(run_dir), log_path)

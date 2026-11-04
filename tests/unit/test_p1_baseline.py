@@ -48,7 +48,7 @@ def test_baseline_refuses_test_split_without_approval(tmp_path: Path) -> None:
     require_approval("val", None, "baseline full", log_path=log)  # tập không phải kiểm tra: không cần duyệt
     assert not log.exists()
     require_approval("test_main", "Minh", "baseline full", "profile=deer_paper", log_path=log)
-    assert "baseline full | test_main | Minh" in log.read_text(encoding="utf-8")
+    assert "baseline full | test_main | — | Minh | profile=deer_paper |" in log.read_text(encoding="utf-8")
 
 
 def test_generate_full_scripted(qwen3_tokenizer: Any) -> None:
