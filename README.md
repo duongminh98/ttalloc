@@ -1,7 +1,6 @@
 # ttalloc
 
-Code for the bachelor thesis *Adaptive allocation of inference compute for large reasoning models*
-(Dương Tuấn Minh).
+Adaptive allocation of inference compute for large reasoning models.
 
 The problem: there are $N$ questions and one shared token budget $B$. While a reasoning model is thinking, the
 allocator decides at each decision point which questions keep reasoning and which ones stop and answer. The goal is
