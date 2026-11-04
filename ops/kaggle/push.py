@@ -210,7 +210,11 @@ def failed_steps(out_dir: Path, name: str, run_id: str | None = None) -> dict[st
     if run_id is not None and data.get("run_id") != run_id:
         return {}  # báo cáo của phiên bản trước
     steps = data.get("steps", {})
-    return {k: str(v.get("error") or v.get("summary") or v.get("rc")) for k, v in steps.items() if not v.get("ok")}
+    return {
+        k: str(v.get("error") or v.get("skipped") or v.get("summary") or f"rc={v.get('rc')}")
+        for k, v in steps.items()
+        if not v.get("ok")
+    }
 
 
 def wait_and_fetch(kernel: str, name: str, poll: int = 60, fail_fast: bool = False) -> int:
@@ -270,7 +274,7 @@ def request_stop(name: str) -> None:
     stop = ROOT / "ops" / "kaggle" / "stop.txt"
     lines = stop.read_text(encoding="utf-8").splitlines() if stop.exists() else []
     if run_id not in lines:
-        stop.write_text("\n".join([*lines, run_id]) + "\n", encoding="utf-8")
+        stop.write_text("\n".join([*lines, run_id]) + "\n", encoding="utf-8", newline="\n")
     rel = stop.relative_to(ROOT).as_posix()
     subprocess.run(["git", "add", rel], cwd=ROOT, check=True)
     subprocess.run(["git", "commit", "-q", "-m", f"Stop Kaggle run {run_id}", "--", rel], cwd=ROOT, check=False)
