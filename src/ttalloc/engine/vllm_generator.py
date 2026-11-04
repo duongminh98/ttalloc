@@ -27,6 +27,8 @@ class VllmGenerator:
             "enable_prefix_caching": engine_cfg.enable_prefix_caching,
             "gpu_memory_utilization": engine_cfg.gpu_memory_utilization,
             "seed": engine_cfg.seed,
+            # LLM offline mặc định tắt số đo; cần bật để đọc tỉ lệ trúng prefix cache (P0, bước chạy 1 trả về rỗng).
+            "disable_log_stats": False,
         }
         from ttalloc.context import tokenizer_roundtrip_ok, vllm_tokenizer_dir
 

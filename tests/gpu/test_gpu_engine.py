@@ -124,6 +124,10 @@ def test_live_source_walk(world: dict[str, Any]) -> None:
         reqs = [AdvanceRequest(k, cfg.dp.m, cfg.dp.l_max, True) for k in live]
     for a in src.answer(keys):
         assert a.output_tokens <= 256 and isinstance(a.correct, bool)
+    # Đoạn sau, gợi và trả lời đều nối tiếp tiền tố đã sinh, nên prefix cache phải trúng; số này vào bảng thời gian E5.
+    rate = world["gen"].prefix_cache_hit_rate()
+    names = sorted({getattr(m, "name", "") for m in world["gen"].llm.get_metrics()} - {""})
+    assert rate is not None and rate > 0.0, f"hit rate {rate}; số đo có: {[n for n in names if 'prefix' in n]}"
 
 
 def _keys(world: dict[str, Any], seed: int) -> list[Any]:
