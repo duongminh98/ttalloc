@@ -27,7 +27,14 @@ log = logging.getLogger("ttalloc.logger")
 
 @dataclass
 class _Rec:
+    """Trạng thái một chuỗi giữa các vòng: việc còn chờ ở vòng sau (trả lời tại điểm đầu, gợi + trả lời tại điểm vừa
+    tới, trả lời tự nhiên sau khi kết thúc) và chuỗi đã chạm L_log hay chưa."""
+
     points: list[dict[str, Any]] = field(default_factory=list)
+    start: bool = True
+    point: SegmentResult | None = None
+    end: SegmentResult | None = None
+    full: bool = False
 
 
 def start_row(key: TraceKey, a: AnswerResult) -> dict[str, Any]:
@@ -117,19 +124,17 @@ def run_logger(
         return source.kv_demand(k, cfg.log.l_max)
 
     def admit() -> None:
-        new: list[TraceKey] = []
         used = sum(demand(k) for k in active)
+        new: list[TraceKey] = []
         while queue and len(active) + len(new) < cfg.log.window:
             need = demand(queue[0])
-            if budget is not None and active and used + need > budget:
+            if budget is not None and (active or new) and used + need > budget:
                 break
             used += need
             new.append(queue.popleft())
-        if not new:
-            return
         source.start(new)
-        for k, a in zip(new, source.answer(new, finalize=False), strict=True):
-            active[k] = _Rec(points=[start_row(k, a)])
+        for k in new:
+            active[k] = _Rec()
 
     def finish(key: TraceKey, end_reason: str, nat: AnswerResult | None, chain: list[int], lps: list[float]) -> None:
         rec = active.pop(key)
@@ -167,6 +172,9 @@ def run_logger(
     t_start = time.time()
     while active:
         t0 = time.time()
+        # Mỗi vòng là một lượt gom chung (LiveSource.step): sinh tiếp tới điểm kế, cùng lúc gợi + trả lời tại điểm vòng
+        # trước vừa tới, trả lời tại điểm đầu của chuỗi mới, trả lời tự nhiên của chuỗi vừa kết thúc. Bản tập dượt lần 4
+        # chạy ba lượt riêng mỗi vòng, mỗi lượt chờ yêu cầu chậm nhất (≈ 35 s + 42 s trên T4).
         # Chuỗi dài ra qua các vòng: nếu tổng vượt KV thì vòng này chỉ chạy các chuỗi vào trước (để chúng sớm xong).
         run_keys: list[TraceKey] = []
         used = 0
@@ -176,29 +184,48 @@ def run_logger(
                 continue
             used += need
             run_keys.append(k)
-        segs = source.advance([AdvanceRequest(k, cfg.log.m, cfg.log.l_max, True) for k in run_keys])
-        at_point = [r for r in segs if r.kind in ("marker", "length")]
-        ended = [r for r in segs if r.kind in ("natural_end", "eos")]
-        truncated = [r for r in segs if r.kind == "truncated"]
-        t1 = time.time()
-        if at_point:
-            probes, answers = source.probe_and_answer([r.key for r in at_point])
-            for r, p, a in zip(at_point, probes, answers[source.answer_mode], strict=True):
-                rec = active[r.key]
-                rec.points.append(point_row(len(rec.points), r, p, a))
-        t2 = time.time()
-        if ended:
-            snaps = {r.key: (list(source.chains[r.key].chain), list(source.chains[r.key].logprobs)) for r in ended}
-            nats = source.answer([r.key for r in ended], finalize=True)
-            for r, a in zip(ended, nats, strict=True):
-                finish(r.key, "think_end" if r.kind == "natural_end" else "eos", a, *snaps[r.key])
-        # Chuỗi chạm L_log: điểm cuối (nếu có) đã được ghi ở trên; kết thúc với max_len.
-        full = [r for r in at_point if r.gen_end >= cfg.log.l_log] + truncated
-        for r in full:
-            ch = source.chains[r.key]
-            finish(r.key, "max_len", None, list(ch.chain), list(ch.logprobs))
-            stats["max_len"] += 1
-        source.drop([r.key for r in full])
+        recs = {k: active[k] for k in run_keys}
+        adv = [
+            AdvanceRequest(k, cfg.log.m, cfg.log.l_max, True) for k, r in recs.items() if r.end is None and not r.full
+        ]
+        probe = [k for k, r in recs.items() if r.point is not None]
+        answer = [k for k, r in recs.items() if r.start or r.point is not None or r.end is not None]
+        segs, probes, answers = source.step(adv, probe, answer)
+        by_key = dict(zip(answer, answers, strict=True))
+        for k, a in by_key.items():
+            if recs[k].start:
+                recs[k].points.append(start_row(k, a))
+                recs[k].start = False
+        for k, p in zip(probe, probes, strict=True):
+            rec = recs[k]
+            assert rec.point is not None
+            rec.points.append(point_row(len(rec.points), rec.point, p, by_key[k]))
+            rec.point = None
+        nat_done = [k for k, r in recs.items() if r.end is not None]
+        for k in nat_done:
+            ch = source.chains[k]
+            end = recs[k].end
+            assert end is not None
+            finish(k, "think_end" if end.kind == "natural_end" else "eos", by_key[k], list(ch.chain), list(ch.logprobs))
+        source.drop(nat_done)
+        dropped: list[TraceKey] = []
+        for r in segs:
+            rec = recs[r.key]
+            if r.kind in ("marker", "length"):
+                rec.point = r
+                rec.full = r.gen_end >= cfg.log.l_log
+            elif r.kind in ("natural_end", "eos"):
+                rec.end = r
+            else:  # truncated: chạm L_log mà không có điểm mới
+                rec.full = True
+        # Chuỗi chạm L_log: điểm cuối (nếu có) được gợi ở vòng sau rồi mới kết thúc với max_len.
+        for k, rec in recs.items():
+            if rec.full and rec.point is None and not rec.start and k in active:
+                ch = source.chains[k]
+                finish(k, "max_len", None, list(ch.chain), list(ch.logprobs))
+                stats["max_len"] += 1
+                dropped.append(k)
+        source.drop(dropped)
         stats["rounds"] += 1
         flush()
         admit()
@@ -209,8 +236,7 @@ def run_logger(
             "kv_demand": used,
             "queued": len(queue),
             "done": stats["chains"],
-            "t_advance": round(t1 - t0, 2),
-            "t_probe_answer": round(t2 - t1, 2),
+            "t_step": round(time.time() - t0, 2),
             "elapsed": round(time.time() - t_start, 1),
         }
         if on_round:

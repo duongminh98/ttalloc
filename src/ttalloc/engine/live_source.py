@@ -256,6 +256,22 @@ class LiveSource:
         n = len(keys)
         return out[:n], {m: out[n * (i + 1) : n * (i + 2)] for i, m in enumerate(modes)}
 
+    def step(
+        self, adv: list[AdvanceRequest], probe: list[TraceKey], answer: list[TraceKey]
+    ) -> tuple[list[SegmentResult], list[ProbeResult], list[AnswerResult]]:
+        """Một lượt gom chung cho logger: sinh tiếp `adv`, gợi tại điểm hiện tại của `probe`, và trả lời tại điểm hiện
+        tại (hoặc tự nhiên nếu chuỗi đã kết thúc) của `answer`; một chuỗi có thể vừa sinh tiếp vừa gợi.
+
+        Nhánh gợi và nhánh trả lời chụp prefix `chain[:pos]` khi tạo job, trước khi lượt sinh tiếp nối thêm token, nên
+        kết quả giống hệt khi gọi riêng từng lượt; gom lại chỉ bớt số lần chờ yêu cầu chậm nhất của mỗi lượt.
+        """
+        jobs: list[Job[Any]] = [self._answer_job(self.chains[k], self.answer_mode) for k in answer]
+        jobs += [self._probe_job(self.chains[k]) for k in probe]
+        jobs += [self._advance_job(self.chains[r.key], r) for r in adv]
+        out = self._drive(jobs)
+        a, p = len(answer), len(probe)
+        return out[a + p :], out[a : a + p], out[:a]
+
     def answer_modes(
         self, keys: list[TraceKey], modes: tuple[AnswerMode, ...], finalize: bool = False
     ) -> dict[AnswerMode, list[AnswerResult]]:
@@ -423,6 +439,7 @@ class LiveSource:
             probe_text = prompts.probe(ch.question)
             probe_ids = self.codec.encode(probe_text)
         base = ch.prompt_ids + ch.chain[: ch.pos] + probe_ids
+        gen_end = ch.gen_end  # chụp lúc tạo job: trong `step`, lượt sinh tiếp có thể nối thêm token vào chuỗi
         gen, lps, box, eos = yield from self._gen_until_box_closed(base, probe_text, self.cfg.probe.r_probe)
         a, b = confidence_span(self.codec, gen, box)
         span = lps[a:b]
@@ -451,7 +468,7 @@ class LiveSource:
             output_tokens=len(gen),
             has_think_end=has_end,
             output_ids=tuple(gen),
-            gen_end=ch.gen_end,
+            gen_end=gen_end,
         )
 
     def _answer_job(self, ch: ChainState, mode: AnswerMode) -> Job[AnswerResult]:
