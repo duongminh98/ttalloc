@@ -73,6 +73,14 @@ class VllmGenerator:
             self.n_prompt += len(r.prompt_ids)
         return res
 
+    def kv_cache_tokens(self) -> int | None:
+        """Sức chứa KV cache theo token (số block × cỡ block), None nếu phiên bản vLLM không cho đọc."""
+        try:
+            cache = self.llm.llm_engine.vllm_config.cache_config
+            return int(cache.num_gpu_blocks) * int(cache.block_size)
+        except Exception:
+            return None
+
     def prefix_cache_hit_rate(self) -> float | None:
         """Tỉ lệ trúng prefix cache cộng dồn, nếu phiên bản vLLM cung cấp số đo (không có thì None)."""
         try:

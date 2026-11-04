@@ -79,6 +79,24 @@ def test_logger_end_to_end(world: Any, tmp_path: Path) -> None:
             assert t[qid]["chain_len"] == world.cfg.log.l_log and t[qid]["end_reason"] == "max_len"
 
 
+def test_kv_budget_limits_rounds_but_not_data(world: Any, tmp_path: Path) -> None:
+    keys = [TraceKey(q, s) for q in world.questions for s in (0, 1)]
+    gold = {q: v.gold for q, v in world.questions.items()}
+    out = {}
+    for name, kv in (("free", None), ("tight", 1)):
+        store = LogStore(tmp_path / name)
+        store.init("LH", {})
+        rounds: list[dict[str, Any]] = []
+        src = world.source()
+        stats = run_logger(src, keys, store, world.cfg, "qwen3_1_7b", "val", "LH", gold, rounds.append, kv)
+        tr = sorted(store.read_traces().to_pylist(), key=lambda r: (r["qid"], r["seed"]))
+        out[name] = ([(r["qid"], r["seed"], r["chain_ids"], r["end_reason"]) for r in tr], stats, rounds)
+    assert out["free"][0] == out["tight"][0]  # cùng dữ liệu, chỉ khác cách xếp vòng
+    assert max(r["ran"] for r in out["free"][2]) == min(world.cfg.log.window, len(keys))
+    assert all(r["ran"] == 1 for r in out["tight"][2])  # KV không đủ cho hai chuỗi: mỗi vòng chạy một
+    assert out["tight"][1]["rounds"] > out["free"][1]["rounds"]
+
+
 def test_start_point_present(world: Any, tmp_path: Path) -> None:
     store = LogStore(tmp_path / "logs")
     _log(world, store, [TraceKey("w/0", 0)])

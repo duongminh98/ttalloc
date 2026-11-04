@@ -466,7 +466,12 @@ def log_cmd(
             "config": json.loads(json.dumps(cfg.model_dump(mode="json", by_alias=True))),
         },
     )
-    _echo(f"ghi {len(keys)} chuỗi vào {store.root} (log_hash {lh}); đã có {len(store.completed_keys())}")
+    kv = gen.kv_cache_tokens()
+    _echo(f"ghi {len(keys)} chuỗi vào {store.root} (log_hash {lh}); đã có {len(store.completed_keys())}; KV {kv} token")
+    if kv is None:
+        log.warning(
+            "không đọc được sức chứa KV cache: chạy tới log.window chuỗi, có thể phải tính lại ngữ cảnh mỗi vòng"
+        )
     stats = run_logger(
         src,
         keys,
@@ -477,6 +482,7 @@ def log_cmd(
         lh,
         {q.qid: q.gold for q in qs},
         on_round=lambda i: log.info("%s", i),
+        kv_tokens=kv,
     )
     _echo(json.dumps(stats, indent=2, ensure_ascii=False))
 

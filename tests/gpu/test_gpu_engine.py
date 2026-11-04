@@ -128,6 +128,8 @@ def test_live_source_walk(world: dict[str, Any]) -> None:
     rate = world["gen"].prefix_cache_hit_rate()
     names = sorted({getattr(m, "name", "") for m in world["gen"].llm.get_metrics()} - {""})
     assert rate is not None and rate > 0.0, f"hit rate {rate}; số đo có: {[n for n in names if 'prefix' in n]}"
+    kv = world["gen"].kv_cache_tokens()  # logger dùng số này để không chạy quá sức chứa KV
+    assert kv is not None and kv > 10_000, kv
 
 
 def _keys(world: dict[str, Any], seed: int) -> list[Any]:

@@ -1,8 +1,9 @@
 """Ghi dữ liệu cho bộ ước lượng và bộ mô phỏng (PLAN P1.T8).
 
-Logger dùng trực tiếp `LiveSource` (không qua Runner): tối đa `log.window` chuỗi chạy đồng thời; mỗi vòng sinh mọi
-chuỗi tới điểm kế tiếp với `min_tokens = log.m`, `max_tokens = log.l_max`; tại mọi điểm mới gợi đáp án thử và sinh câu
-trả lời ép buộc; chuỗi tự kết thúc thì sinh câu trả lời tự nhiên; chuỗi chạm L_log được đánh dấu `max_len`.
+Logger dùng trực tiếp `LiveSource` (không qua Runner): tối đa `log.window` chuỗi chạy đồng thời, và tổng ngữ cảnh
+không quá `log.kv_fraction` KV cache; mỗi vòng sinh các chuỗi tới điểm kế tiếp với `min_tokens = log.m`,
+`max_tokens = log.l_max`; tại mọi điểm mới gợi đáp án thử và sinh câu trả lời ép buộc; chuỗi tự kết thúc thì sinh
+câu trả lời tự nhiên; chuỗi chạm L_log được đánh dấu `max_len`.
 """
 
 from __future__ import annotations
@@ -95,6 +96,7 @@ def run_logger(
     log_hash: str,
     gold: dict[str, str],
     on_round: Callable[[dict[str, Any]], None] | None = None,
+    kv_tokens: int | None = None,
 ) -> dict[str, Any]:
     if source.l_log != cfg.log.l_log:
         raise ValueError(f"LiveSource.l_log ({source.l_log}) phải bằng log.l_log ({cfg.log.l_log})")
@@ -105,9 +107,23 @@ def run_logger(
     buf_traces: list[dict[str, Any]] = []
     buf_points: list[dict[str, Any]] = []
 
+    # Giới hạn theo KV cache: tổng ngữ cảnh của các chuỗi chạy trong một vòng phải vừa KV, để prefix của chúng còn
+    # trong cache giữa lượt sinh, lượt gợi và lượt trả lời. Bản tập dượt Kaggle lần 1–2 chạy 256 chuỗi trên T4 (KV
+    # 74k token): KV đầy 99%, tỉ lệ trúng prefix cache 13%, mỗi vòng tính lại cả ngữ cảnh, vòng 3 mất 550 s.
+    # Seed của từng yêu cầu chỉ phụ thuộc khóa và vị trí, nên thứ tự và cách gom lô không đổi dữ liệu.
+    budget = int(kv_tokens * cfg.log.kv_fraction) if kv_tokens else None
+
+    def demand(k: TraceKey) -> int:
+        return source.kv_demand(k, cfg.log.l_max)
+
     def admit() -> None:
         new: list[TraceKey] = []
+        used = sum(demand(k) for k in active)
         while queue and len(active) + len(new) < cfg.log.window:
+            need = demand(queue[0])
+            if budget is not None and active and used + need > budget:
+                break
+            used += need
             new.append(queue.popleft())
         if not new:
             return
@@ -151,7 +167,16 @@ def run_logger(
     t_start = time.time()
     while active:
         t0 = time.time()
-        segs = source.advance([AdvanceRequest(k, cfg.log.m, cfg.log.l_max, True) for k in active])
+        # Chuỗi dài ra qua các vòng: nếu tổng vượt KV thì vòng này chỉ chạy các chuỗi vào trước (để chúng sớm xong).
+        run_keys: list[TraceKey] = []
+        used = 0
+        for k in active:
+            need = demand(k)
+            if budget is not None and run_keys and used + need > budget:
+                continue
+            used += need
+            run_keys.append(k)
+        segs = source.advance([AdvanceRequest(k, cfg.log.m, cfg.log.l_max, True) for k in run_keys])
         at_point = [r for r in segs if r.kind in ("marker", "length")]
         ended = [r for r in segs if r.kind in ("natural_end", "eos")]
         truncated = [r for r in segs if r.kind == "truncated"]
@@ -180,6 +205,8 @@ def run_logger(
         info = {
             "round": stats["rounds"],
             "active": len(active),
+            "ran": len(run_keys),
+            "kv_demand": used,
             "queued": len(queue),
             "done": stats["chains"],
             "t_advance": round(t1 - t0, 2),

@@ -81,6 +81,7 @@ class LogCfg(_Cfg):
     l_max: int = 256
     l_log: int = 32768
     window: int = 256
+    kv_fraction: float = 0.9  # tổng ngữ cảnh mỗi vòng ≤ tỉ lệ này của KV cache; không đổi dữ liệu, không vào log_hash
     flush_every: int = 64  # số chuỗi đã xong mỗi lần ghi một phần (P1.T7)
 
 

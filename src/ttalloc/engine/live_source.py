@@ -214,6 +214,13 @@ class LiveSource:
     def c_ans_max(self, mode: AnswerMode | None = None) -> int:
         return len(self.answer_prompt_ids(mode)) + self.r_ans(mode)
 
+    def kv_demand(self, key: TraceKey, step: int) -> int:
+        """Số token KV tối đa một chuỗi cần trong một vòng: ngữ cảnh, đoạn sinh tiếp (≤ `step`), nhánh gợi và nhánh trả
+        lời (hai nhánh dùng chung prefix của chuỗi)."""
+        ch = self.chains.get(key)
+        ctx = len(ch.prompt_ids) + len(ch.chain) if ch else len(self.prompt_ids[key.qid])
+        return ctx + step + self.c_probe_max() + self.c_ans_max()
+
     # ------------------------------------------------------------ SegmentSource
 
     def start(self, keys: list[TraceKey]) -> None:
