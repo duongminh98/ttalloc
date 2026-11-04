@@ -21,6 +21,23 @@ def codec(qwen3_tokenizer: Any) -> TokenCodec:
     return TokenCodec.from_tokenizer(qwen3_tokenizer)
 
 
+def test_prefix_hit_rate_reads_exact_counters() -> None:
+    from types import SimpleNamespace as M
+
+    from ttalloc.engine.vllm_generator import prefix_hit_rate_from_metrics
+
+    # Thứ tự và tên đúng như vLLM 0.32.0 trả trên Kaggle: counter "external" đứng sau và bằng 0.
+    metrics = [
+        M(name="vllm:prefix_cache_hits", value=39.0),
+        M(name="vllm:prefix_cache_queries", value=40.0),
+        M(name="vllm:external_prefix_cache_hits", value=0.0),
+        M(name="vllm:external_prefix_cache_queries", value=0.0),
+    ]
+    assert prefix_hit_rate_from_metrics(metrics) == pytest.approx(0.975)
+    assert prefix_hit_rate_from_metrics(metrics[2:]) is None
+    assert prefix_hit_rate_from_metrics([M(name="vllm:prefix_cache_hits_total", value=1.0)] * 2 + metrics[1:2]) == 0.05
+
+
 # ---------------------------------------------------------------- P1.T1
 
 

@@ -79,13 +79,21 @@ class VllmGenerator:
             metrics = self.llm.get_metrics()
         except Exception:  # API số đo khác nhau giữa các phiên bản; số đo này chỉ để báo cáo
             return None
-        hits = queries = None
-        for m in metrics:
-            name = getattr(m, "name", "")
-            if name.endswith("prefix_cache_hits") or name.endswith("prefix_cache_hits_total"):
-                hits = float(getattr(m, "value", 0.0))
-            if name.endswith("prefix_cache_queries") or name.endswith("prefix_cache_queries_total"):
-                queries = float(getattr(m, "value", 0.0))
-        if hits is None or not queries:
-            return None
-        return hits / queries
+        return prefix_hit_rate_from_metrics(metrics)
+
+
+def prefix_hit_rate_from_metrics(metrics: Any) -> float | None:
+    """Cộng các counter `vllm:prefix_cache_hits` / `..._queries` (mọi bộ nhãn). So đúng tên: `endswith` từng bắt nhầm
+    `vllm:external_prefix_cache_hits` (bằng 0, đứng sau trong danh sách) và trả về None."""
+    hits = queries = 0.0
+    found = False
+    for m in metrics:
+        name = str(getattr(m, "name", "")).rsplit(":", 1)[-1].removesuffix("_total")
+        if name == "prefix_cache_hits":
+            hits += float(getattr(m, "value", 0.0))
+            found = True
+        elif name == "prefix_cache_queries":
+            queries += float(getattr(m, "value", 0.0))
+    if not found or not queries:
+        return None
+    return hits / queries
