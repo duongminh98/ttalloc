@@ -7,7 +7,7 @@
 #   TTALLOC_JOB                 tên công việc: ops/vast/jobs/<TTALLOC_JOB>.sh
 #   TTALLOC_APPROVED_BY         người duyệt, chỉ cho công việc chạm test_* (PLAN mục 7.5)
 #   TTALLOC_SYNC_EVERY          số giây giữa hai lần đẩy dữ liệu lên (mặc định 600)
-#   TTALLOC_LOG_EVERY           số giây giữa hai lần đẩy đuôi log lên status/<job>.log (mặc định 180)
+#   TTALLOC_LOG_EVERY           số giây giữa hai lần đẩy đuôi log lên status/<job>.log (mặc định 60; bỏ qua nếu log không đổi)
 #   TTALLOC_FIX_WAIT            khi công việc lỗi: chờ bản mã sửa (push-code) tối đa bấy nhiêu giây rồi chạy lại
 #                               (mặc định 2700; 0 để thoát ngay). Logger chạy tiếp từ các khóa đã ghi.
 #   TTALLOC_MAX_ATTEMPTS        số lần chạy tối đa của công việc (mặc định 4)
@@ -16,7 +16,7 @@ set -uo pipefail
 cd /root/ttalloc
 JOB="${TTALLOC_JOB:?thiếu TTALLOC_JOB}"
 SYNC_EVERY="${TTALLOC_SYNC_EVERY:-600}"
-LOG_EVERY="${TTALLOC_LOG_EVERY:-180}"
+LOG_EVERY="${TTALLOC_LOG_EVERY:-60}"
 FIX_WAIT="${TTALLOC_FIX_WAIT:-2700}"
 MAX_ATTEMPTS="${TTALLOC_MAX_ATTEMPTS:-4}"
 LOG=/root/job.log

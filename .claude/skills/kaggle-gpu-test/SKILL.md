@@ -13,8 +13,8 @@ description: Chạy một script GPU của repo ttalloc trên Kaggle (T4), theo 
 ## Vòng chạy – theo dõi – sửa
 1. Đẩy (không chờ): `uv run --group ops python ops/kaggle/push.py <tên> --no-wait` (thêm `--no-upload` nếu mã không đổi).
 2. Theo dõi **chạy nền** (`run_in_background`), để nhận thông báo khi lệnh thoát:
-   `uv run --group ops python ops/kaggle/push.py <tên> --watch-only --fail-fast --poll 60`
-   Lệnh tải log và báo cáo mỗi phút ngay khi kernel đang chạy (`kaggle kernels output` lấy được kết quả từng phần), in dòng log mới và bước lỗi, rồi thoát với mã:
+   `uv run --group ops python ops/kaggle/push.py <tên> --watch-only --fail-fast --poll 30`
+   Lệnh tải log và báo cáo mỗi 30 giây ngay khi kernel đang chạy (`kaggle kernels output` lấy được kết quả từng phần), in dòng log mới và bước lỗi, rồi thoát với mã:
    - `0`: xong, mọi bước đạt → sang bước 4.
    - `2`: có bước lỗi → bước 3.
    - `4`: log có dấu hiệu sự cố (traceback, OOM, lỗi CUDA, lỗi pip; quy tắc ở `ops/watch_rules.py`) → bước 3.

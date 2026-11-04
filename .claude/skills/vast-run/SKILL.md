@@ -7,15 +7,15 @@ description: Thuê máy RTX 3090 trên Vast.ai để chạy một công việc G
 
 Máy cá nhân chỉ ra mạng qua HTTPS (SSH bị chặn), nên máy Vast tự chạy:
 - onstart tải mã nguồn từ dataset Hugging Face riêng tư, chạy `ops/vast/bootstrap.sh`, rồi `ops/vast/jobs/<job>.sh`;
-- dữ liệu được đẩy lên mỗi 10 phút; đuôi log (`status/<job>.log`) và trạng thái (`status/<job>.json`) mỗi 3 phút;
+- dữ liệu được đẩy lên mỗi 10 phút; đuôi log (`status/<job>.log`) mỗi phút (bỏ qua nếu log không đổi); trạng thái (`status/<job>.json`) mỗi khi sang bước mới;
 - công việc lỗi thì máy **không tắt** mà chuyển sang `waiting_fix` và chờ tối đa 45 phút. Khi có bản mã mới (`hf_sync.py push-code`), máy tự giải nén, cài lại và chạy lại công việc. Logger bỏ qua các khóa đã ghi, nên không mất dữ liệu. Tối đa 4 lần chạy mỗi máy.
 
 ## Quy tắc bắt buộc
 - **Thuê máy tốn tiền: luôn hỏi người dùng trước khi `create`**, nêu offer, giá USD/giờ, công việc, số giờ ước tính (ops/RUNBOOK.md). Chỉ thêm `--yes` sau khi người dùng đồng ý trong cuộc trò chuyện này. Sửa lỗi để máy *đang chạy* chạy tiếp thì không cần hỏi lại; tạo máy *mới* thì phải hỏi lại.
 - Xong việc thì **destroy**, không chỉ stop. Trước khi kết thúc lượt làm việc, chạy `vast.py status` để chắc không còn máy nào chạy ngoài ý muốn. Nếu không sửa kịp trong lúc máy chờ (`waiting_fix`), destroy máy, đừng để nó chờ tốn tiền.
 - Không in, ghi vào tệp, commit hay yêu cầu dán token (`VAST_API_KEY`, `HF_TOKEN`). Trong PowerShell của agent, nạp biến mức user trước mỗi lệnh, ví dụ `$env:HF_TOKEN=[Environment]::GetEnvironmentVariable('HF_TOKEN','User')`.
-- Công việc chạm `test_*` (`p1_baseline`, `p4_online`) cần `--approved-by <tên>` do **người dùng** cung cấp (PLAN mục 7.5).
-- Bước có **[dừng]** trong RUNBOOK: dừng lại, báo kết quả, chờ người dùng.
+- Công việc chạm `test_*` (`p1_baseline`, `p4_online`) cần `--approved-by <tên>` (PLAN mục 7.5). Người dùng đã duyệt trước mọi bước loại này (04/11/2026): dùng `--approved-by "Duong Tuan Minh"`.
+- Bước có **[dừng]** trong RUNBOOK: người dùng đã cho phép tự quyết (04/11/2026). Quyết theo tiêu chí kế hoạch đã ghi, ghi vào `docs/decisions.md` hoặc `docs/progress.md`, báo lại rồi chạy tiếp. Nếu kết quả trượt tiêu chí (cổng G1–G3 trượt, baseline lệch > 2 điểm phần trăm…) thì dừng và báo. Việc tốn tiền vẫn luôn hỏi trước.
 
 ## Chuẩn bị
 - `uv run pytest` đạt; `splits/` đã khóa (công việc nào cũng chạy `ttalloc splits verify`).
@@ -27,8 +27,8 @@ Máy cá nhân chỉ ra mạng qua HTTPS (SSH bị chặn), nên máy Vast tự 
 
 ## Vòng theo dõi – sửa
 1. Theo dõi **chạy nền** (`run_in_background`):
-   `uv run --group ops python ops/vast/vast.py watch <id> --job <job> --fail-fast --destroy-when-done --poll 120`
-   Lệnh in dòng log mới mỗi 2 phút và thoát với mã:
+   `uv run --group ops python ops/vast/vast.py watch <id> --job <job> --fail-fast --destroy-when-done --poll 60`
+   Lệnh in dòng log mới mỗi phút và thoát với mã:
    - `0`: xong (đã destroy) → bước 4.
    - `2`: công việc lỗi; máy đang `waiting_fix` → bước 2 ngay.
    - `4`: log có dấu hiệu sự cố (traceback, OOM, lỗi CUDA, `LỖI`, `BudgetExceeded`…; `ops/watch_rules.py`) trong khi công việc có thể vẫn chạy → đọc kỹ: lỗi đã làm công việc dừng thì sang bước 2; chỉ là cảnh báo thì chạy lại `watch` (không cần `--fail-fast` cho đến dòng tiếp theo).

@@ -10,13 +10,14 @@ Cách dùng (từ gốc repo):
     python ops/hf_sync.py pull data/logs runs              # tải về đúng chỗ
     python ops/hf_sync.py status p2_log                    # trạng thái công việc trên máy GPU
     python ops/hf_sync.py set-status p2_log running "bước 1/3"
-    python ops/hf_sync.py tail p2_log -n 80                # đuôi log máy GPU đẩy lên mỗi vài phút
+    python ops/hf_sync.py tail p2_log -n 80                # đuôi log máy GPU đẩy lên mỗi phút
     python ops/hf_sync.py code-rev                         # bản mã nguồn hiện có (máy GPU dùng để biết có bản sửa)
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import os
@@ -24,6 +25,7 @@ import platform
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -180,13 +182,20 @@ def pull_code(dest: Path) -> None:
 def put_log(job: str, path: Path, lines: int = 400) -> None:
     """Đẩy `lines` dòng cuối của log công việc lên status/<job>.log để máy cá nhân theo dõi khi đang chạy."""
     text = path.read_text(encoding="utf-8", errors="replace").splitlines()[-lines:] if path.exists() else []
+    blob = "\n".join(text).encode("utf-8")
+    # Đẩy mỗi phút nên bỏ qua khi log không đổi, để không tốn commit (Hugging Face giới hạn số commit mỗi giờ).
+    seen = Path(tempfile.gettempdir()) / f"ttalloc-put-log-{job}.sha256"
+    digest = hashlib.sha256(blob).hexdigest()
+    if seen.exists() and seen.read_text(encoding="utf-8") == digest:
+        return
     _api().upload_file(
-        path_or_fileobj="\n".join(text).encode("utf-8"),
+        path_or_fileobj=blob,
         path_in_repo=f"status/{job}.log",
         repo_id=_env("TTALLOC_HF_REPO"),
         repo_type="dataset",
         commit_message=f"log {job}",
     )
+    seen.write_text(digest, encoding="utf-8")
 
 
 def get_log(job: str) -> str:

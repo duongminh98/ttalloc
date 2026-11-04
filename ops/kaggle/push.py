@@ -212,7 +212,7 @@ def main() -> None:
     ap.add_argument("--no-wait", action="store_true")
     ap.add_argument("--watch-only", action="store_true", help="không đẩy gì, chỉ theo dõi kernel đã đẩy")
     ap.add_argument("--fail-fast", action="store_true", help="thoát ngay khi có bước lỗi hoặc log có dấu hiệu sự cố")
-    ap.add_argument("--poll", type=int, default=60)
+    ap.add_argument("--poll", type=int, default=30)
     args = ap.parse_args()
     user = kaggle_user()
     kernel = f"{user}/ttalloc-{args.name.replace('_', '-')}"

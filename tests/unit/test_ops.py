@@ -121,6 +121,26 @@ def test_bootstrap_runs_from_copy_and_waits_for_fix() -> None:
     assert "waiting_fix" in text and "code-rev" in text and "pull-code" in text and "put-log" in text
 
 
+def test_put_log_skips_unchanged_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    hf = _load("ops/hf_sync.py")
+    uploads: list[bytes] = []
+
+    class _Api:
+        def upload_file(self, path_or_fileobj: bytes, **_: object) -> None:
+            uploads.append(path_or_fileobj)
+
+    monkeypatch.setattr(hf, "_api", _Api)
+    monkeypatch.setattr(hf.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setenv("TTALLOC_HF_REPO", "u/r")
+    log = tmp_path / "job.log"
+    log.write_text("a\nb\n", encoding="utf-8")
+    hf.put_log("j", log)
+    hf.put_log("j", log)  # log không đổi: không commit thêm
+    log.write_text("a\nb\nc\n", encoding="utf-8")
+    hf.put_log("j", log)
+    assert uploads == [b"a\nb", b"a\nb\nc"]
+
+
 def test_hf_sync_never_ships_secrets() -> None:
     hf = _load("ops/hf_sync.py")
     for bad in (".env", "kaggle.json", "sub/.env", "ops/kaggle/_build/x", "ops/vast/_state/instances.json"):

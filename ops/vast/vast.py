@@ -258,7 +258,7 @@ def main() -> None:
     p.add_argument("id", type=int)
     p.add_argument("--job", required=True)
     p.add_argument("--destroy-when-done", action="store_true")
-    p.add_argument("--poll", type=int, default=120)
+    p.add_argument("--poll", type=int, default=60)
     p.add_argument("--fail-fast", action="store_true", help="thoát ngay khi log có dấu hiệu sự cố (ops/watch_rules.py)")
     p.add_argument("--stall-min", type=int, default=40, help="thoát nếu log đứng yên quá bấy nhiêu phút; 0 để tắt")
     p = sub.add_parser("destroy")
