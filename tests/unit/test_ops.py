@@ -126,6 +126,8 @@ def test_hf_sync_never_ships_secrets() -> None:
     for bad in (".env", "kaggle.json", "sub/.env", "ops/kaggle/_build/x", "ops/vast/_state/instances.json"):
         assert hf._blocked(bad)
     assert not hf._blocked("src/ttalloc/cli.py")
+    if not (ROOT / ".git").exists():
+        pytest.skip("cần repo git; mã đang chạy từ gói tar (Kaggle, Vast)")
     files = hf.git_files(ROOT)
     assert "pyproject.toml" in files and "ops/vast/bootstrap.sh" in files
     # Mọi tệp .py của gói đều phải được đóng gói (lỗi cũ: `data/` trong .gitignore bỏ mất src/ttalloc/data).

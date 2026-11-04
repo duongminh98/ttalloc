@@ -18,8 +18,21 @@ from pydantic import BaseModel
 from ttalloc.config import REPO_ROOT, config_hash, config_to_dict
 
 TRACKED_PACKAGES = (
-    "ttalloc", "numpy", "pandas", "pyarrow", "pydantic", "transformers", "tokenizers", "datasets",
-    "math-verify", "lightgbm", "scikit-learn", "scipy", "statsmodels", "torch", "vllm",
+    "ttalloc",
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "pydantic",
+    "transformers",
+    "tokenizers",
+    "datasets",
+    "math-verify",
+    "lightgbm",
+    "scikit-learn",
+    "scipy",
+    "statsmodels",
+    "torch",
+    "vllm",
 )
 
 
@@ -53,7 +66,10 @@ def gpu_info() -> list[str] | None:
     try:
         out = subprocess.run(
             ["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader"],
-            capture_output=True, text=True, timeout=20, check=True,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=True,
         )
     except (OSError, subprocess.SubprocessError):
         return None

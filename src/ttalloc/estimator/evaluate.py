@@ -63,8 +63,7 @@ def gain_spearman(
     out: dict[str, float] = {}
     b0 = pred[pred.h == 0]
     base: dict[tuple[str, int, int], float] = {
-        (str(q), int(s), int(i)): float(p)
-        for q, s, i, p in zip(b0.qid, b0.seed, b0.point_idx, b0.p, strict=True)
+        (str(q), int(s), int(i)): float(p) for q, s, i, p in zip(b0.qid, b0.seed, b0.point_idx, b0.p, strict=True)
     }
     px: list[float] = []
     py: list[float] = []

@@ -38,10 +38,19 @@ def synth_questions(n: int) -> dict[str, Question]:
     return {f"synth/{i}": Question(f"synth/{i}", "synth", f"p{i}", None, "gold", "math", 1 + i % 5) for i in range(n)}
 
 
-def synth_env(n: int = 12, seeds: list[int] | None = None, cfg: ExperimentCfg | None = None, seed: int = 0,
-              **kw: Any) -> SimEnv:
+def synth_env(
+    n: int = 12, seeds: list[int] | None = None, cfg: ExperimentCfg | None = None, seed: int = 0, **kw: Any
+) -> SimEnv:
     seeds = seeds if seeds is not None else [0, 1, 2]
     chains = synth_chains(n, seeds, seed)
     lens = [c.chain_len for c in chains.values()]
-    return SimEnv(cfg=cfg or synth_cfg(), split="val", chains=chains, questions=synth_questions(n),
-                  c_ans_max=C_ANS_MAX, c_probe_max=C_PROBE_MAX, ref_median=float(np.median(lens)), **kw)
+    return SimEnv(
+        cfg=cfg or synth_cfg(),
+        split="val",
+        chains=chains,
+        questions=synth_questions(n),
+        c_ans_max=C_ANS_MAX,
+        c_probe_max=C_PROBE_MAX,
+        ref_median=float(np.median(lens)),
+        **kw,
+    )

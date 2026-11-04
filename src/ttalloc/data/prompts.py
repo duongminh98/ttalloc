@@ -46,8 +46,15 @@ class PromptSet:
     def digest(self) -> str:
         """Mã băm của mọi lời nhắc, đưa vào log_hash (I9)."""
         blob = "\x1f".join(
-            [self.instruction_role, self.instruction_math, self.instruction_choice, self.probe_math,
-             self.probe_choice, self.answer_full, self.answer_short]
+            [
+                self.instruction_role,
+                self.instruction_math,
+                self.instruction_choice,
+                self.probe_math,
+                self.probe_choice,
+                self.answer_full,
+                self.answer_short,
+            ]
         )
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:12]
 

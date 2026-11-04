@@ -141,9 +141,7 @@ def equivalent(a: str, b: str) -> bool:
 
 
 _INT_RE = re.compile(r"^[+-]?\d{1,3}(?:,\d{3})+$|^[+-]?\d+$")
-_FRAC_RE = re.compile(
-    r"^[+-]?(?:\\[dt]?frac\{\s*[+-]?\d+\s*\}\{\s*\d+\s*\}|\\[dt]?frac\d\d|\d+\s*/\s*\d+|\d*\.\d+)$"
-)
+_FRAC_RE = re.compile(r"^[+-]?(?:\\[dt]?frac\{\s*[+-]?\d+\s*\}\{\s*\d+\s*\}|\\[dt]?frac\d\d|\d+\s*/\s*\d+|\d*\.\d+)$")
 _CHOICE_ONLY_RE = re.compile(r"^\(?[A-J]\)?$|^\\text\{\(?[A-J]\)?\}$")
 _MATHY_RE = re.compile(r"[\\^_=+\-*/()\[\]{}<>]|\d|^[a-z]$")
 

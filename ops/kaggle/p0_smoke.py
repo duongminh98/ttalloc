@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import traceback
 from pathlib import Path
@@ -76,7 +77,7 @@ def gpu_info() -> dict[str, Any]:
 def find_source() -> str:
     """Tìm mã nguồn ttalloc: dataset Kaggle đính kèm (thư mục hoặc tệp ttalloc-src.tar.gz)."""
     root = Path("/kaggle/input")
-    target = WORK / "ttalloc"
+    target = Path(tempfile.gettempdir()) / "ttalloc"  # ngoài /kaggle/working để cây mã không thành output
     for tgz in root.rglob("ttalloc-src.tar.gz"):
         if target.exists():
             shutil.rmtree(target)

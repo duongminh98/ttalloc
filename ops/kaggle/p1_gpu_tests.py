@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -54,7 +55,8 @@ def run(
 
 
 def find_source() -> Path:
-    target = WORK / "ttalloc"
+    # Giải nén ra /tmp: để trong /kaggle/working thì cả cây mã thành output, mỗi lần tải output rất chậm.
+    target = Path(tempfile.gettempdir()) / "ttalloc"
     for tgz in Path("/kaggle/input").rglob("ttalloc-src.tar.gz"):
         if target.exists():
             shutil.rmtree(target)
@@ -90,7 +92,7 @@ def main() -> None:
             cwd=src,
             env=env,
         )
-        run("pytest-cpu", [py, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider"], cwd=src, env=env, timeout=1800)
+        run("pytest-cpu", [py, "-m", "pytest", "-q", "-rfE", "-p", "no:cacheprovider"], cwd=src, env=env, timeout=1800)
     REPORT["ok"] = all(s["ok"] for s in REPORT["steps"].values())
     save()
     print(json.dumps({k: (v["ok"], v["summary"]) for k, v in REPORT["steps"].items()}, indent=2, ensure_ascii=False))

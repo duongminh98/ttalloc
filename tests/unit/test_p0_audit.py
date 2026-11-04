@@ -17,8 +17,15 @@ def _synthetic_run(tmp_path: Path, n: int) -> Path:
     run = tmp_path / "20261103-000000_baseline_abc"
     run.mkdir()
     rows = [
-        {"qid": f"synth/{i}", "seed": i % 2, "problem": f"Đề {i}", "gold": str(i), "answer_text": f"\\boxed{{{i}}}",
-         "extracted": str(i), "correct": i % 3 != 0}
+        {
+            "qid": f"synth/{i}",
+            "seed": i % 2,
+            "problem": f"Đề {i}",
+            "gold": str(i),
+            "answer_text": f"\\boxed{{{i}}}",
+            "extracted": str(i),
+            "correct": i % 3 != 0,
+        }
         for i in range(n)
     ]
     pq.write_table(to_table(rows, ANSWERS_SCHEMA), run / "answers.parquet")

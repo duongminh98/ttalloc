@@ -25,9 +25,7 @@ class SplitsTamperedError(RuntimeError):
 
 # ---------------------------------------------------------------- khử trùng lặp
 
-_PRESENTATION = re.compile(
-    r"\\(?:left|right|displaystyle|textstyle|quad|qquad|,|!|;|:)|\$|\\\[|\\\]|\\\(|\\\)|~"
-)
+_PRESENTATION = re.compile(r"\\(?:left|right|displaystyle|textstyle|quad|qquad|,|!|;|:)|\$|\\\[|\\\]|\\\(|\\\)|~")
 _ASY = re.compile(r"\[asy\].*?\[/asy\]", re.S)
 # n-gram tính trên từ (chữ và số), bỏ ký hiệu: nếu tính cả ký hiệu LaTeX thì những cụm phổ biến như
 # `\frac{1}{2}` cũng đủ 13 token và gây khớp nhầm hàng loạt (chạy thử trên dữ liệu thật, 03/11/2026; ADR-009).

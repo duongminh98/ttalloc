@@ -80,8 +80,16 @@ class World:
 
     def source(self, gen: ScriptedGenerator | None = None, cfg: ExperimentCfg | None = None) -> LiveSource:
         c = cfg or self.cfg
-        return LiveSource(gen or self.generator(), self.codec, self.questions, self.prompt_ids, c,
-                          load_model_cfg("qwen3_1_7b"), load_prompts(), l_log=c.log.l_log)
+        return LiveSource(
+            gen or self.generator(),
+            self.codec,
+            self.questions,
+            self.prompt_ids,
+            c,
+            load_model_cfg("qwen3_1_7b"),
+            load_prompts(),
+            l_log=c.log.l_log,
+        )
 
 
 def _logprob(ctx: tuple[int, ...], token: int) -> float:
@@ -96,8 +104,9 @@ def _find(seq: list[int], sub: list[int]) -> int | None:
     return None
 
 
-def make_world(tok: Any, n_questions: int = 4, seed: int = 0, cfg: ExperimentCfg | None = None,
-               max_len_q: int | None = 1) -> World:
+def make_world(
+    tok: Any, n_questions: int = 4, seed: int = 0, cfg: ExperimentCfg | None = None, max_len_q: int | None = 1
+) -> World:
     cfg = cfg or small_cfg()
     rng = np.random.default_rng(seed)
     codec = TokenCodec.from_tokenizer(tok)
@@ -120,5 +129,6 @@ def make_world(tok: Any, n_questions: int = 4, seed: int = 0, cfg: ExperimentCfg
             chain += filler * int(rng.integers(5, 30)) + [codec.think_end_id]
         chains[q.qid] = chain
         th[q.qid] = int(rng.integers(0, max(len(chain), 1)))
-    return World(tok, codec, cfg, qs, pids, chains, th, codec.encode(prompts.probe_math),
-                 codec.encode(prompts.answer("full")))
+    return World(
+        tok, codec, cfg, qs, pids, chains, th, codec.encode(prompts.probe_math), codec.encode(prompts.answer("full"))
+    )

@@ -71,8 +71,14 @@ def test_scripted_eos(codec: TokenCodec) -> None:
 # ---------------------------------------------------------------- P1.T2
 
 
-def _classify(codec: TokenCodec, prefix: list[int], seg: list[int], out_kw: dict[str, Any], min_tokens: int = 0,
-              start: int | None = None) -> Any:
+def _classify(
+    codec: TokenCodec,
+    prefix: list[int],
+    seg: list[int],
+    out_kw: dict[str, Any],
+    min_tokens: int = 0,
+    start: int | None = None,
+) -> Any:
     out = GenOutput(tuple(seg), None, **out_kw)
     s = len(prefix) if start is None else start
     return classify(prefix, s, len(prefix), out, codec, min_tokens, marker_regex(MARKERS))

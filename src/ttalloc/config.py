@@ -112,8 +112,15 @@ class FeatureCfg(_Cfg):
 
 def _lgb_defaults() -> dict[str, Any]:
     return {
-        "objective": "binary", "learning_rate": 0.05, "num_leaves": 31, "min_data_in_leaf": 50,
-        "feature_fraction": 0.9, "bagging_fraction": 0.8, "bagging_freq": 1, "lambda_l2": 1.0, "verbosity": -1,
+        "objective": "binary",
+        "learning_rate": 0.05,
+        "num_leaves": 31,
+        "min_data_in_leaf": 50,
+        "feature_fraction": 0.9,
+        "bagging_fraction": 0.8,
+        "bagging_freq": 1,
+        "lambda_l2": 1.0,
+        "verbosity": -1,
     }
 
 

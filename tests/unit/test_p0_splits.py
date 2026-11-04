@@ -76,8 +76,16 @@ def test_dedup_detects_planted_duplicate() -> None:
     target = pool["testset"][3]
     # Cùng đề bài nhưng khác cách trình bày: chữ hoa, ký hiệu LaTeX trình bày, khoảng trắng.
     words = target.problem.split()
-    planted = _q("extra", 999, text="  " + " ".join(w.upper() for w in words[:3]) + " $" + " ".join(words[3:6])
-                 + "$ \\left " + "   ".join(words[6:]))
+    planted = _q(
+        "extra",
+        999,
+        text="  "
+        + " ".join(w.upper() for w in words[:3])
+        + " $"
+        + " ".join(words[3:6])
+        + "$ \\left "
+        + "   ".join(words[6:]),
+    )
     pool["extra"].append(planted)
     # Trùng 13-gram: chép phần lớn một đề kiểm tra, thêm vài chữ ở đầu và cuối.
     long_test = _q("testset", 100, text=" ".join(f"w{i}" for i in range(40)))

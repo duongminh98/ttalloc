@@ -13,8 +13,17 @@ from ttalloc.config import load_dataset_cfg
 from ttalloc.data.loaders import parse_difficulty, rows_to_questions
 from ttalloc.types import Question
 
-DATASETS = ["math_train", "deepscaler", "amc23", "math500", "aime_2024", "aime_2025", "aime_2026", "hmmt_feb_2026",
-            "gpqa_diamond"]
+DATASETS = [
+    "math_train",
+    "deepscaler",
+    "amc23",
+    "math500",
+    "aime_2024",
+    "aime_2025",
+    "aime_2026",
+    "hmmt_feb_2026",
+    "gpqa_diamond",
+]
 
 
 def _load_fixture(fixtures_dir: Path, name: str) -> list[Question]:

@@ -34,20 +34,52 @@ def test_schema_roundtrip(tmp_path: Path) -> None:
     traces, points = make_logs(3, [0, 1], np.random.default_rng(0))
     per_q = to_table(
         [
-            {"method": "M2", "alpha": 0.5, "draw": 0, "qid": "synth/0", "seed": 0, "correct": True, "think": 10,
-             "probe_prompt": 1, "probe_output": 2, "answer_prompt": 3, "answer_output": 4, "stop_point_idx": 2,
-             "stop_kind": "marker", "n_probes": 2, "n_rounds": 3}
+            {
+                "method": "M2",
+                "alpha": 0.5,
+                "draw": 0,
+                "qid": "synth/0",
+                "seed": 0,
+                "correct": True,
+                "think": 10,
+                "probe_prompt": 1,
+                "probe_output": 2,
+                "answer_prompt": 3,
+                "answer_output": 4,
+                "stop_point_idx": 2,
+                "stop_kind": "marker",
+                "n_probes": 2,
+                "n_rounds": 3,
+            }
         ],
         PER_QUESTION_SCHEMA,
     )
     timing = to_table(
-        [{"round": 0, "t_advance": 1.0, "t_probe": 0.1, "t_answer": 0.0, "t_controller": 0.01, "n_active": 8,
-          "prefix_cache_hit_rate": None}],
+        [
+            {
+                "round": 0,
+                "t_advance": 1.0,
+                "t_probe": 0.1,
+                "t_answer": 0.0,
+                "t_controller": 0.01,
+                "n_active": 8,
+                "prefix_cache_hit_rate": None,
+            }
+        ],
         TIMING_SCHEMA,
     )
     answers = to_table(
-        [{"qid": "q", "seed": 0, "problem": "1+1?", "gold": "2", "answer_text": "\\boxed{2}", "extracted": "2",
-          "correct": True}],
+        [
+            {
+                "qid": "q",
+                "seed": 0,
+                "problem": "1+1?",
+                "gold": "2",
+                "answer_text": "\\boxed{2}",
+                "extracted": "2",
+                "correct": True,
+            }
+        ],
         ANSWERS_SCHEMA,
     )
     for name, table, schema in [
@@ -69,7 +101,16 @@ def test_to_table_rejects_missing_and_extra_fields() -> None:
         to_table([{"round": 0}], TIMING_SCHEMA)
     with pytest.raises(SchemaError):
         to_table(
-            [{"round": 0, "t_advance": 1.0, "t_probe": 0.1, "t_answer": 0.0, "t_controller": 0.0, "n_active": 1,
-              "bogus": 1}],
+            [
+                {
+                    "round": 0,
+                    "t_advance": 1.0,
+                    "t_probe": 0.1,
+                    "t_answer": 0.0,
+                    "t_controller": 0.0,
+                    "n_active": 1,
+                    "bogus": 1,
+                }
+            ],
             TIMING_SCHEMA,
         )
