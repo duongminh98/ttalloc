@@ -12,7 +12,13 @@ Mỗi chỗ lệch đặc tả, mâu thuẫn hoặc chỗ chưa rõ được ghi
 - Task: P0, bước chạy 1
 - Bối cảnh: cần cố định một phiên bản vLLM (PLAN mục 2.2). Ngày 03/11/2026, bản mới nhất là v0.33.0 (ra 02/11/2026); v0.32.0 ra 18/10/2026. Image `vllm/vllm-openai:v0.32.0` dựng trên CUDA 13.0.2, có kiến trúc 7.5 (T4) và 8.6 (RTX 3090).
 - Quyết định (tạm thời): `vllm==0.32.0`, vì đã ra được hai tuần. Chốt sau khi `ops/kaggle/p0_smoke.py` chạy được trên T4 của Kaggle. Nếu driver của Kaggle không chạy được bản CUDA 13, chọn một phiên bản có bản dựng CUDA 12.x và dùng cùng phiên bản đó trên Vast (khi đó lọc máy Vast với `cuda_max_good >= 12.8`).
-- Hệ quả: chưa chốt; cập nhật ADR này sau khi chạy smoke test.
+- Hệ quả:
+  - **Chốt `vllm==0.32.0`**: ngày 04/11/2026, `p0_smoke` trên Kaggle đạt cả 5 bước.
+  - Môi trường Kaggle lúc đó: T4 với driver 580.178.04 (CUDA tối đa 13.0), Python 3.13, torch 2.13.0+cu130.
+  - Trên T4, `torch.cuda.is_bf16_supported()` trả True dù T4 (compute capability 7.5) không có bf16 gốc. Vì vậy, kiểu số được chọn theo compute capability (≥ 8.0 thì dùng bf16), và smoke test dùng float16.
+  - Số đo phụ trên T4 (float16): sinh song song 32 chuỗi đạt 587 token/giây; nhánh gợi `{59}` tốn 4 token.
+  - Một giả định chưa được kiểm: đoạn thử là câu hỏi dễ, nên model tự kết thúc (EOS) sau 441 token mà không gặp từ chuyển ý. Giả định "`stop_reason` là chuỗi dừng" vì thế để `tests/gpu` kiểm tiếp.
+  - Thời gian gợi lặp lại (0,11 giây so với 0,10 giây) quá ngắn để kết luận về prefix caching.
 
 ## ADR-003: Phân tầng theo độ khó khi lấy mẫu MATH
 - Task: P0.T7

@@ -14,8 +14,8 @@
 | P0.T8 | mã xong | | Lời nhắc |
 | P0.T9 | mã xong | | Chấm điểm |
 | P0.T10 | mã xong | | Công cụ kiểm tra chấm điểm |
-| P0, bước chạy 1 | chưa | | Cần Kaggle token: `ops/kaggle/push.py p0_smoke` (xem `ops/RUNBOOK.md`) |
-| P0, bước chạy 2 | chưa | | Chốt `engine.dtype` sau bước 1 |
+| P0, bước chạy 1 | xong | | 04/11/2026: `p0_smoke` trên Kaggle T4 đạt 5/5 bước; chốt vLLM 0.32.0 (ADR-002) |
+| P0, bước chạy 2 | xong | | `bfloat16` cho Vast (RTX 3090); float16 chỉ trên T4 cho test (ADR-002) |
 | P0, bước chạy 3 | chưa | | `ttalloc splits build` → **[dừng]** khóa ID; `test_ood` cần `HF_TOKEN` |
 | P0a (review) | chưa | | |
 | P1.T1–T3 | mã xong | | Generator, ScriptedGenerator, cắt đoạn có peek (ADR-010) |

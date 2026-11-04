@@ -61,7 +61,15 @@ def find_source() -> Path:
         with tarfile.open(tgz) as tf:
             tf.extractall(target, filter="data")
         return target
-    raise FileNotFoundError("không thấy ttalloc-src.tar.gz trong /kaggle/input (đính kèm dataset ttalloc-src)")
+    # Kaggle có thể đã tự giải nén gói khi tạo dataset: tìm thư mục chứa pyproject.toml của ttalloc.
+    for pp in Path("/kaggle/input").rglob("pyproject.toml"):
+        if 'name = "ttalloc"' in pp.read_text(encoding="utf-8"):
+            if target.exists():
+                shutil.rmtree(target)
+            shutil.copytree(pp.parent, target)
+            return target
+    listing = [str(p) for p in Path("/kaggle/input").rglob("*")][:50]
+    raise FileNotFoundError(f"không thấy mã nguồn ttalloc trong /kaggle/input; có: {listing}")
 
 
 def main() -> None:
