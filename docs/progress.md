@@ -16,7 +16,7 @@
 | P0.T10 | mã xong | | Công cụ kiểm tra chấm điểm |
 | P0, bước chạy 1 | xong | | 04/11/2026: `p0_smoke` trên Kaggle T4 đạt 5/5 bước; chốt vLLM 0.32.0 (ADR-002) |
 | P0, bước chạy 2 | xong | | `bfloat16` cho Vast (RTX 3090); float16 chỉ trên T4 cho test (ADR-002) |
-| P0, bước chạy 3 | chưa | | `ttalloc splits build` → **[dừng]** khóa ID; `test_ood` cần `HF_TOKEN` |
+| P0, bước chạy 3 | xong | | 04/11/2026: `splits build` đủ 5 tập (train 1.500, val 400, test_main 560, test_clean 63 theo ADR-004, test_ood 198); `splits verify` OK. Người dùng duyệt khóa ID. Tệp chỉ chứa ID, không có nội dung câu hỏi |
 | P0a (review) | chưa | | |
 | P1.T1–T3 | mã xong | | Generator, ScriptedGenerator, cắt đoạn có peek (ADR-010) |
 | P1.T4 | mã xong | | VllmGenerator; test GPU ở `tests/gpu` chưa chạy (Kaggle `p1_gpu_tests`, Vast `gpu_check`) |
