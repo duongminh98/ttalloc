@@ -246,11 +246,16 @@ def collect() -> None:
 def seed_from_input() -> str | None:
     """Chạy tiếp từ dữ liệu của một lần trước (push.py --seed <thư mục out> --start-at <bước>): chép data/ và runs/
     vào gốc mã rồi trả tên bước bắt đầu; các bước trước đó coi như đã đạt. Không có thì chạy từ đầu."""
-    for tgz in Path("/kaggle/input").rglob("rehearsal-seed.tar.gz"):
-        with tarfile.open(tgz) as tf:
-            tf.extractall(SRC, filter="data")
-        meta = json.loads((tgz.parent / "rehearsal-seed.json").read_text(encoding="utf-8"))
-        return str(meta["start_at"])
+    for meta in Path("/kaggle/input").rglob("rehearsal-seed.json"):
+        tgz, unpacked = meta.with_name("rehearsal-seed.tar.gz"), meta.with_name("rehearsal-seed")
+        if tgz.is_file():
+            with tarfile.open(tgz) as tf:
+                tf.extractall(SRC, filter="data")
+        elif unpacked.is_dir():  # Kaggle tự giải nén .tar.gz của dataset thành thư mục cùng tên (bản tập dượt lần 6)
+            shutil.copytree(unpacked, SRC, dirs_exist_ok=True)
+        else:
+            raise FileNotFoundError(f"có {meta} nhưng không có {tgz.name} hay thư mục {unpacked.name}")
+        return str(json.loads(meta.read_text(encoding="utf-8"))["start_at"])
     return None
 
 
