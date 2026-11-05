@@ -5,7 +5,6 @@
 extends: ../qwen3.yaml
 name: rehearsal
 engine: {dtype: float16, gpu_memory_utilization: 0.85}
-answer: {mode: full}
 # Chuỗi ngắn để toàn bộ val (400 câu × 2 seed) ghi xong trong khoảng 15 phút trên T4. Cần ghi đủ val vì mô phỏng
 # và chạy thật dựng lô trên mọi câu của tập.
 log: {m: 128, l_max: 256, l_log: 1024}

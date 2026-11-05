@@ -79,6 +79,11 @@ STEPS: list[tuple[str, list[Arg], list[str]]] = [
     ("validate_train", ["validate-logs", "--exp", B, "--split", "train"], ["log_train"]),
     ("estimator_train", ["estimator", "train", "--exp", B], ["log_train"]),
     ("estimator_eval", ["estimator", "eval", "--exp", B, "--split", "val"], ["estimator_train", "log_val"]),
+    (
+        "learning_curve",
+        ["estimator", "learning-curve", "--exp", B, "--sizes", "50,100"],
+        ["log_train", "log_val"],
+    ),
     ("study_curves", ["study", "curves", "--exp", B, "--split", "val"], ["log_val"]),
     ("table_build", ["table", "build", "--exp", f"{EXP}/sim.yaml", "--split", "val"], ["estimator_train", "log_val"]),
     ("sim_run", ["sim", "run", "--exp", f"{EXP}/sim.yaml"], ["table_build"]),

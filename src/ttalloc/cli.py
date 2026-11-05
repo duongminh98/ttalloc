@@ -595,15 +595,79 @@ def estimator_train(exp: Exp = None, sets: Sets = None) -> None:
     _echo(json.dumps(est.meta["oof"], indent=2))
 
 
-@estimator_app.command("eval")
-def estimator_eval(split: Split = "val", exp: Exp = None, sets: Sets = None) -> None:
-    """E1 trên một tập: AUROC, ECE, Brier, biểu đồ độ tin cậy, Spearman của lợi ích, mức quan trọng (P2.T6)."""
+def _eval_estimator(est: Any, chains: dict[Any, Any], cfg: Any) -> tuple[Any, dict[str, Any]]:
+    """Dự đoán của `est` trên mọi điểm của `chains` và báo cáo E1 (evaluate)."""
     import pandas as pd
 
     from ttalloc.estimator.dataset import build_dataset
-    from ttalloc.estimator.evaluate import evaluate, reliability
-    from ttalloc.estimator.train import Estimator
+    from ttalloc.estimator.evaluate import evaluate
     from ttalloc.features.curve import EmpiricalCurves
+
+    df = build_dataset(chains, cfg.dp, cfg.features, cfg.estimator.h_train)
+    parts = []
+    for hv in sorted(df.h.unique()):
+        g = df[df.h == hv]
+        parts.append(g[["qid", "seed", "point_idx", "h", "y"]].assign(p=est.predict(g[est.features], [int(hv)])[:, 0]))
+    pred = pd.concat(parts)
+    gen_end = {(k.qid, k.seed, int(i)): int(c.gen_end[i]) for k, c in chains.items() for i in range(c.n_points)}
+    return pred, evaluate(pred, EmpiricalCurves(chains, cfg.dp), gen_end, est.hs)
+
+
+@estimator_app.command("learning-curve")
+def estimator_learning_curve(
+    sizes: Annotated[str, typer.Option(help="số câu train, ví dụ 250,500")] = "250,500",
+    exp: Exp = None,
+    sets: Sets = None,
+) -> None:
+    """Học trên các tập con lồng nhau của train, đánh giá trên val; đề xuất cỡ train cho P3 (ADR-015). Chỉ CPU."""
+    from ttalloc.estimator.dataset import build_dataset
+    from ttalloc.estimator.learning_curve import decide, nested_subsets
+    from ttalloc.estimator.train import train_estimator
+    from ttalloc.features.extract import feature_names
+    from ttalloc.sim.load import expected_log_hash
+    from ttalloc.sim.logged_source import load_logged
+
+    cfg = _cfg(exp, sets)
+    assert cfg.model
+    lh = expected_log_hash(cfg)
+    train, _ = load_logged(cfg.model, cfg.train_split, lh)
+    val, _ = load_logged(cfg.model, "val", lh)
+    logged = {k.qid for k in train}
+    full_order = hash_order([q.qid for q in _questions(cfg.train_split)], cfg.train_split)
+    order = [q for q in full_order if q in logged]
+    if order != full_order[: len(order)]:
+        raise ValueError("câu train đã ghi không phải tiền tố của thứ tự `log --limit`; tập con sẽ không lồng nhau")
+    subsets = nested_subsets(order, [int(s) for s in sizes.split(",")])
+    rows = []
+    d = _run_dir("estimator-learning-curve", cfg)
+    for n, keep in subsets.items():
+        sub = {k: c for k, c in train.items() if k.qid in keep}
+        df = build_dataset(sub, cfg.dp, cfg.features, cfg.estimator.h_train)
+        est, _ = train_estimator(df, feature_names(cfg.features.drop_groups), cfg.estimator)
+        _, rep = _eval_estimator(est, val, cfg)
+        brier = [v["brier"] for v in rep["per_h"].values()]
+        rows.append(
+            {
+                "n_questions": n,
+                "n_chains": len(sub),
+                "auroc_q0": rep["auroc_q0"],
+                "mean_log_loss": rep["mean_log_loss"],
+                "mean_brier": float(np.mean(brier)),
+                "max_ece": rep["max_ece"],
+            }
+        )
+        _echo(json.dumps(rows[-1]))
+    out = {"rows": rows, "decision": decide(rows, len(order))}
+    _write_json(d / "learning_curve.json", out)
+    _echo(json.dumps(out["decision"], indent=2))
+
+
+@estimator_app.command("eval")
+def estimator_eval(split: Split = "val", exp: Exp = None, sets: Sets = None) -> None:
+    """E1 trên một tập: AUROC, ECE, Brier, biểu đồ độ tin cậy, Spearman của lợi ích, mức quan trọng (P2.T6)."""
+
+    from ttalloc.estimator.evaluate import reliability
+    from ttalloc.estimator.train import Estimator
     from ttalloc.sim.load import estimator_dir, expected_log_hash
     from ttalloc.sim.logged_source import load_logged
 
@@ -614,14 +678,7 @@ def estimator_eval(split: Split = "val", exp: Exp = None, sets: Sets = None) -> 
     lh = expected_log_hash(cfg)
     est = Estimator.load(estimator_dir(cfg, lh))
     chains, _ = load_logged(cfg.model, split, lh)
-    df = build_dataset(chains, cfg.dp, cfg.features, cfg.estimator.h_train)
-    parts = []
-    for hv in sorted(df.h.unique()):
-        g = df[df.h == hv]
-        parts.append(g[["qid", "seed", "point_idx", "h", "y"]].assign(p=est.predict(g[est.features], [int(hv)])[:, 0]))
-    pred = pd.concat(parts)
-    gen_end = {(k.qid, k.seed, int(i)): int(c.gen_end[i]) for k, c in chains.items() for i in range(c.n_points)}
-    rep = evaluate(pred, EmpiricalCurves(chains, cfg.dp), gen_end, est.hs)
+    pred, rep = _eval_estimator(est, chains, cfg)
     rep["reliability"] = {
         str(h): reliability(g.y.to_numpy(float), g.p.to_numpy(float)).to_dict("records") for h, g in pred.groupby("h")
     }

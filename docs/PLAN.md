@@ -859,6 +859,7 @@ Công việc chia thành bảy phase, P0 đến P6, cùng cách chia với [kế
 **P1.T9. Chọn dạng câu trả lời.**
 - Lệnh `ttalloc study answer-mode --model --n 100`, chạy trên một tập con của `val`. Tại mỗi điểm và tại điểm tự kết thúc, sinh cả dạng `full` và dạng `short` (mục 9.2), rồi báo cáo riêng cho hai loại vị trí: tỉ lệ cùng kết quả chấm, tỉ lệ không trích được đáp án và chi phí trung bình.
 - Đề xuất: chọn `short` nếu tỉ lệ cùng kết quả chấm ít nhất 98%. Ghi ADR. **Dừng chờ xác nhận.**
+- Đã chốt `short` từ trước (ADR-014): ở bản tập dượt, dạng `full` với `r_ans` = 256 không trích được đáp án ở 85–92% số điểm, nên không dùng được làm chuẩn so sánh. Study vẫn chạy ở P1 bước 4 để báo cáo.
 
 **P1.T10. Đo nhiễu do lời nhắc gợi.**
 - Lệnh `ttalloc study probe-noise --model --n 100`: tại cùng điểm, gợi bằng hai mẫu lời nhắc; báo cáo tỉ lệ đáp án khác nhau theo vị trí tương đối trong chuỗi.
@@ -988,7 +989,7 @@ Công việc chia thành bảy phase, P0 đến P6, cùng cách chia với [kế
 **Bước chạy:**
 
 1. Khi bắt đầu phase: ghi dữ liệu thăm dò với Qwen3-1.7B, gồm `train` 500 câu × 4 seed và `val` × 8 seed; `validate-logs`. Bước này chạy nền trong lúc viết mã P2.T1–T6.
-2. Sau P2a và bước 1: `estimator train`, `estimator eval` (E1 trên `val`).
+2. Sau P2a và bước 1: `estimator train`, `estimator eval` (E1 trên `val`); `estimator learning-curve --sizes 250,500` để chọn cỡ `train` cho P3 (ADR-015).
 3. Sau P2c và bước 2: `table build` cho `val`; `sim run --exp g1` với B2, M2, M3 trên toàn bộ `val` và trên các lô `balanced`, `easy`, `hard`, `u` dựng từ phần MATH của `val`; `study curves --split val`.
 4. Sau bước 3: `gate g1` → **[dừng]**.
 
@@ -1029,7 +1030,7 @@ Công việc chia thành bảy phase, P0 đến P6, cùng cách chia với [kế
 
 **Bước chạy:**
 
-1. Khi bắt đầu phase: **[dừng]** duyệt GPU, rồi ghi nốt dữ liệu của Qwen3-1.7B: `train` tới đủ 1.500 câu × 4 seed (logger bỏ qua các khóa đã ghi ở P2) và `test_main` × 8 seed; `validate-logs`. Bước này chỉ sinh và ghi, không đánh giá chính sách, và chạy nền trong lúc viết mã P3.T3–T6.
+1. Khi bắt đầu phase: **[dừng]** duyệt GPU, rồi ghi nốt dữ liệu của Qwen3-1.7B: `train` tới số câu do `estimator learning-curve` đề xuất cuối P2 (500, 1.000 hoặc 1.500 câu × 4 seed, ADR-015; logger bỏ qua các khóa đã ghi ở P2) và `test_main` × 8 seed; `validate-logs`. Bước này chỉ sinh và ghi, không đánh giá chính sách, và chạy nền trong lúc viết mã P3.T3–T6.
 2. Sau P3a và bước 1: học lại bộ ước lượng trên `train` đầy đủ với `lightgbm` và với `logreg`; chọn mô hình có log-loss trung bình theo các $h$ thấp hơn trên `val`; ghi ADR.
 3. Sau bước 2: `table build` cho `val`; `tune` trên `val`; `lock` → **[dừng]** duyệt cấu hình khóa.
 4. Sau bước 3: `eval-test` cho E1 (trên `test_main`), E2, E3 và E4; `report`; `gate g2` → **[dừng]**.

@@ -4,5 +4,5 @@
 extends: ../base.yaml
 name: qwen3
 model: qwen3_1_7b
-# answer.mode chốt ở P1 bước chạy 4 (study answer-mode), ghi ADR rồi điền vào đây. null: LiveSource dùng `full`.
-answer: {mode: null}
+# Chốt `short` (ADR-014): dạng `full` với r_ans 256 bị cắt trước khi có \boxed{} ở 85–92% số điểm (tập dượt Kaggle).
+answer: {mode: short}

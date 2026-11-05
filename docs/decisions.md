@@ -116,3 +116,49 @@ Mỗi chỗ lệch đặc tả, mâu thuẫn hoặc chỗ chưa rõ được ghi
   - `VllmGenerator` làm cùng phép kiểm tra trên cách vLLM sẽ nạp. Nếu hỏng thì lưu tokenizer đã sửa ra một thư mục tạm và truyền cho vLLM qua `tokenizer=`. Sau khi khởi tạo, kiểm tra lại `llm.get_tokenizer()` và dừng nếu vẫn sai.
   - `pyproject.toml` chốt `transformers>=5.16.1,<5.20` cho khớp với vLLM 0.32.0, để test CPU chạy đúng phiên bản như trên GPU. Fixture tokenizer trong test đi qua `load_tokenizer` của mã chính.
 - Hệ quả: dãy token của R1 giờ giống hệt bản 5.22 (đã kiểm tra trên 5.16.1 và 5.19.0, kể cả chat template). Khi dùng R1-Distill ở P5, chạy `tests/gpu` với model đó để xác nhận stop string của vLLM khớp.
+
+## ADR-014: Chốt dạng câu trả lời `short`
+- Task: P1.T9
+- Bối cảnh:
+  - Bản tập dượt trên Kaggle T4 (04–05/11/2026; Qwen3-1.7B float16; `val` 400 câu × 2 seed và `train` 100 câu × 2 seed; chuỗi cắt ở 1.024 token) ghi câu trả lời ép buộc dạng `full` với `r_ans` = 256.
+  - Câu trả lời `full` dài trung bình 248–253 token. Ở 85–92% số điểm, câu trả lời chạm `r_ans` trước khi viết `\boxed{}`, nên không trích được đáp án và bị chấm sai.
+  - Ở điểm chuỗi tự kết thúc, trường hợp không phụ thuộc việc cắt chuỗi ở 1.024 token, tỉ lệ này vẫn là 67–77%: sau `</think>`, Qwen3 viết lại lời giải rồi mới đưa đáp án.
+  - `study answer-mode` trên 8 câu cho: `full` không trích được 92%, đúng 8%; `short` không trích được 0%, đúng 42%; tỉ lệ cùng kết quả chấm 67%.
+  - Luật ở P1.T9 (chọn `short` khi tỉ lệ cùng kết quả chấm ≥ 98%) coi `full` là chuẩn. Khi `full` hỏng, luật chọn đúng dạng hỏng.
+  - Câu trả lời `full` chiếm khoảng 58% số token khi ghi log: mỗi điểm tốn 256 token, so với khoảng 14 token của `short`.
+- Quyết định:
+  - `answer.mode: short` (`r_ans` = 32) trong `configs/experiments/qwen3.yaml`, cho mọi lần ghi và chạy thật của Qwen3-1.7B. Người dùng duyệt ngày 05/11/2026.
+  - `p1_pilot` ghi luôn bằng `short`, nên dữ liệu đó dùng lại được ở P2. `study answer-mode` vẫn chạy trên chuỗi dài thật, và khóa luận báo cáo cả hai dạng.
+  - Số liệu dùng để quyết định chỉ lấy từ `val` và `train`, chưa chạm tập kiểm tra.
+- Hệ quả:
+  - Thời gian ghi log giảm khoảng 50%. `c_ans_max` nhỏ hơn, nên phần dự trữ của quỹ và nhu cầu KV của mỗi chuỗi cũng nhỏ hơn.
+  - Nhãn `y` có nghĩa là "nếu bắt trả lời ngay thì có đúng không". Model không được viết thêm bước nào để chốt đáp án; phần phương pháp phải nói rõ điều này.
+  - Với model thứ hai ở P5, vẫn áp luật ở P5 bước 3, nhưng so với dạng `short` của model chính.
+
+## ADR-015: Cỡ `train` theo learning curve
+- Task: P2 bước chạy 2, P3 bước chạy 1
+- Bối cảnh: `train` chỉ dùng để học bộ ước lượng, nhưng 1.500 câu × 4 seed chiếm khoảng 43% số chuỗi phải ghi. Lợi ích của dữ liệu thêm thường giảm dần.
+- Quyết định:
+  - Cuối P2 đã có 500 câu × 4 seed. Lệnh `ttalloc estimator learning-curve --sizes 250,500` học bộ ước lượng trên 250 câu đầu và trên 500 câu đầu, theo đúng thứ tự `hash_order` mà `log --limit` dùng (nên hai tập lồng nhau), rồi đánh giá trên `val`.
+  - Ghi thêm, gấp đôi số câu (tối đa 1.500), khi việc gấp đôi dữ liệu còn tăng AUROC của $\hat q(0)$ ít nhất 0,01 hoặc giảm log-loss trung bình theo các $h$ ít nhất 1% (tương đối). Nếu không thì dừng ở cỡ hiện tại.
+  - Sau khi ghi tới 1.000 câu, kiểm tra lại cặp 500 → 1.000 trước khi đi tới 1.500.
+  - Ngưỡng được chốt trước khi có dữ liệu thật, và chỉ dùng `val`.
+  - `p3_log` nhận cỡ qua biến `TTALLOC_TRAIN_LIMIT` (`vast.py create --env`), không có giá trị mặc định.
+- Hệ quả:
+  - Bỏ được tới 4.000 chuỗi. Khóa luận báo cáo kết quả learning curve, kể cả khi quyết định dừng ở 500 câu.
+  - AUROC trên `val` có sai số khoảng ±0,01, nên luật có thể ghi thêm vì nhiễu. Cách này thiên về an toàn: ghi thừa chỉ tốn thêm GPU, không làm sai kết quả.
+
+## ADR-016: Chọn loại GPU theo chi phí mỗi token
+- Task: P1 bước chạy 1–2
+- Bối cảnh:
+  - Mục tiêu là giảm tiền thuê GPU. Tốc độ ghi log bị giới hạn bởi băng thông bộ nhớ và dung lượng KV cache: số chuỗi chạy được cùng lúc tỉ lệ với KV cache.
+  - Giá trên Vast ngày 05/11/2026 (USD/giờ, máy bid / máy on-demand):
+    - RTX 3090: 0,11–0,18 / 0,17–0,27 (24 GB, 805 GB/s);
+    - RTX 5090: 0,29–0,38 / 0,53–0,60 (32 GB, 1.456 GB/s);
+    - A100 SXM4 80GB: 0,27–0,41, chỉ có máy bid (1.665 GB/s).
+- Quyết định:
+  - Chạy `gpu_check` (khoảng 15 phút) trên một RTX 3090 và một A100 80GB. Chọn loại có chi phí mỗi token thấp nhất, tức giá mỗi giờ chia cho số token/giây ở lô lớn của `baseline throughput`.
+  - Dùng đúng loại đó cho mọi lần ghi log và chạy thật, để số đo thời gian của E5 và kết quả tính toán nhất quán.
+  - Các công việc ghi log dùng máy bid (rẻ hơn khoảng 35%), vì logger chạy tiếp được sau khi bị ngắt. E5 (đo thời gian) dùng máy on-demand.
+  - Lệnh tìm máy: `vast.py search --gpu <tên> --min-vram-gb <n>`.
+- Hệ quả: tiêu chí là tổng tiền, không phải số giờ. GPU nhanh hơn chỉ được chọn khi rẻ hơn tính theo token. Báo cáo E5 ghi rõ tên GPU.

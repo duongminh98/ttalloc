@@ -90,8 +90,13 @@ def call(method: str, path: str, body: dict[str, Any] | None = None, query: str 
     return json.loads(text) if text else {}
 
 
-def build_query(max_dph: float, interruptible: bool, limit: int) -> dict[str, Any]:
+def build_query(
+    max_dph: float, interruptible: bool, limit: int, gpu: str = "RTX 3090", min_vram_gb: int = 0
+) -> dict[str, Any]:
     q = dict(DEFAULT_QUERY)
+    q["gpu_name"] = {"eq": gpu}  # so loại GPU theo chi phí mỗi token bằng gpu_check (ADR-016)
+    if min_vram_gb:
+        q["gpu_ram"] = {"gte": min_vram_gb * 1024}
     q["dph_total"] = {"lte": max_dph}
     q["order"] = [["dph_total", "asc"]]
     q["type"] = "bid" if interruptible else "on-demand"
@@ -99,8 +104,10 @@ def build_query(max_dph: float, interruptible: bool, limit: int) -> dict[str, An
     return q
 
 
-def search(max_dph: float, interruptible: bool, limit: int) -> list[dict[str, Any]]:
-    res = call("POST", "/bundles/", build_query(max_dph, interruptible, limit))
+def search(
+    max_dph: float, interruptible: bool, limit: int, gpu: str = "RTX 3090", min_vram_gb: int = 0
+) -> list[dict[str, Any]]:
+    res = call("POST", "/bundles/", build_query(max_dph, interruptible, limit, gpu, min_vram_gb))
     offers: list[dict[str, Any]] = res.get("offers", [])
     return offers
 
@@ -109,7 +116,7 @@ def job_names() -> list[str]:
     return sorted(p.stem for p in JOBS_DIR.glob("*.sh") if p.stem != "common")
 
 
-def job_env(job: str, approved_by: str | None, self_destroy: bool) -> dict[str, str]:
+def job_env(job: str, approved_by: str | None, self_destroy: bool, extra: list[str] | None = None) -> dict[str, str]:
     if job not in job_names():
         raise SystemExit(f"không có công việc {job}: các công việc có sẵn {job_names()}")
     env = {
@@ -122,6 +129,11 @@ def job_env(job: str, approved_by: str | None, self_destroy: bool) -> dict[str, 
         raise SystemExit(f"thiếu biến môi trường {missing}")
     if approved_by:
         env["TTALLOC_APPROVED_BY"] = approved_by
+    for kv in extra or []:  # --env TTALLOC_TRAIN_LIMIT=500 (p3_log, ADR-015)
+        k, sep, v = kv.partition("=")
+        if not sep or not k.startswith("TTALLOC_"):
+            raise SystemExit(f"--env {kv}: cần dạng TTALLOC_<TÊN>=<giá trị>")
+        env[k] = v
     if self_destroy:
         env["TTALLOC_SELF_DESTROY"] = "1"
         env["VAST_API_KEY"] = _key()
@@ -242,12 +254,15 @@ def main() -> None:
     p.add_argument("--max-dph", type=float, default=0.40, help="giá tối đa USD/giờ, đã gồm ổ đĩa")
     p.add_argument("--interruptible", action="store_true", help="máy có thể bị ngắt (rẻ hơn; logger chạy tiếp được)")
     p.add_argument("--limit", type=int, default=10)
+    p.add_argument("--gpu", default="RTX 3090", help='tên GPU của Vast, ví dụ "A100 SXM4", "RTX 5090"')
+    p.add_argument("--min-vram-gb", type=int, default=0, help="VRAM tối thiểu, ví dụ 80 để lấy A100 80GB")
     p = sub.add_parser("create")
     p.add_argument("--offer", type=int, required=True)
     p.add_argument("--job", required=True)
     p.add_argument("--disk", type=int, default=60)
     p.add_argument("--price", type=float, help="giá đặt cho máy có thể bị ngắt")
     p.add_argument("--approved-by", help="người duyệt cho công việc chạm test_* (mục 7.5)")
+    p.add_argument("--env", action="append", default=[], help="biến TTALLOC_*=giá trị truyền cho công việc")
     p.add_argument("--self-destroy", action="store_true", help="máy tự xóa khi xong (gửi VAST_API_KEY lên máy)")
     p.add_argument("--yes", action="store_true", help="bỏ hỏi xác nhận (chỉ dùng khi người dùng đã đồng ý thuê)")
     sub.add_parser("status")
@@ -266,11 +281,15 @@ def main() -> None:
     a = ap.parse_args()
 
     if a.cmd == "search":
-        rows = search(a.max_dph, a.interruptible, a.limit)
-        print(f"{'offer':>10} {'$/h':>6} {'rel':>5} {'bw':>5} {'cuda':>5} {'cpu':>4} {'ram':>4} {'net':>5}  nơi")
+        rows = search(a.max_dph, a.interruptible, a.limit, a.gpu, a.min_vram_gb)
+        print(
+            f"{'offer':>10} {'$/h':>6} {'vram':>4} {'rel':>5} {'bw':>5} {'cuda':>5} "
+            f"{'cpu':>4} {'ram':>4} {'net':>5}  nơi"
+        )
         for o in rows:
             print(
-                f"{o['id']:>10} {o.get('dph_total', 0):6.3f} {o.get('reliability2', 0):5.3f} "
+                f"{o['id']:>10} {o.get('dph_total', 0):6.3f} {o.get('gpu_ram', 0) / 1024:4.0f} "
+                f"{o.get('reliability2', 0):5.3f} "
                 f"{o.get('gpu_mem_bw', 0):5.0f} {o.get('cuda_max_good', 0):5.1f} "
                 f"{o.get('cpu_cores_effective', 0):4.0f} "
                 f"{o.get('cpu_ram', 0) / 1024:4.0f} {o.get('inet_down', 0):5.0f}  {o.get('geolocation', '')}"
@@ -278,7 +297,7 @@ def main() -> None:
         if not rows:
             print("không có máy khớp; nới --max-dph hoặc thử --interruptible")
     elif a.cmd == "create":
-        env = job_env(a.job, a.approved_by, a.self_destroy)
+        env = job_env(a.job, a.approved_by, a.self_destroy, a.env)
         body = create_body(a.job, env, a.disk, a.price)
         shown = {k: ("***" if k in ("HF_TOKEN", "VAST_API_KEY") else v) for k, v in env.items()}
         print(
