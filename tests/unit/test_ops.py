@@ -105,6 +105,21 @@ def test_vast_create_body_hides_key(monkeypatch: pytest.MonkeyPatch) -> None:
     assert q["type"] == "bid" and q["dph_total"] == {"lte": 0.3} and q["gpu_name"] == {"eq": "RTX 3090"}
 
 
+def test_vast_instances_pages_v1(monkeypatch: pytest.MonkeyPatch) -> None:
+    vast = _load("ops/vast/vast.py")
+    pages = {"?limit=25": ([{"id": 1}], "t+1"), "?limit=25&after_token=t%2B1": ([{"id": 2}], None)}
+    seen = []
+
+    def call(method: str, path: str, body: object = None, query: str = "", base: str = "") -> dict:
+        seen.append((base, path, query))
+        rows, token = pages[query]
+        return {"instances": rows, "next_token": token}
+
+    monkeypatch.setattr(vast, "call", call)
+    assert [r["id"] for r in vast.instances()] == [1, 2]
+    assert all(b == vast.API_V1 and p == "/instances/" for b, p, _ in seen)
+
+
 def test_watch_rules_detect_and_diff() -> None:
     rules = _load("ops/watch_rules.py")
     hits = rules.scan(

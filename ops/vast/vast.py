@@ -23,6 +23,7 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 STATE = ROOT / "ops" / "vast" / "_state" / "instances.json"
 API = "https://console.vast.ai/api/v0"
+API_V1 = "https://console.vast.ai/api/v1"  # danh sách máy chỉ còn ở v1 (v0 trả HTTP 410 từ 11/2026)
 IMAGE = "vllm/vllm-openai:v0.32.0"  # phiên bản chốt ở ADR-002
 JOBS_DIR = ROOT / "ops" / "vast" / "jobs"
 
@@ -74,8 +76,8 @@ def _key() -> str:
     return k
 
 
-def call(method: str, path: str, body: dict[str, Any] | None = None, query: str = "") -> Any:
-    url = f"{API}{path}{query}"
+def call(method: str, path: str, body: dict[str, Any] | None = None, query: str = "", base: str = API) -> Any:
+    url = f"{base}{path}{query}"
     data = None if body is None else json.dumps(body).encode("utf-8")
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Authorization", f"Bearer {_key()}")
@@ -163,9 +165,15 @@ def _save_state(entry: dict[str, Any]) -> None:
 
 
 def instances() -> list[dict[str, Any]]:
-    res = call("GET", "/instances/", query="?owner=me")
-    rows: list[dict[str, Any]] = res.get("instances", [])
-    return rows
+    rows: list[dict[str, Any]] = []
+    query = "?limit=25"
+    while True:
+        res = call("GET", "/instances/", query=query, base=API_V1)
+        rows += res.get("instances", [])
+        token = res.get("next_token")
+        if not token:
+            return rows
+        query = "?limit=25&after_token=" + urllib.parse.quote(str(token))
 
 
 def logs(iid: int, tail: int) -> str:
