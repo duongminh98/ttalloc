@@ -154,7 +154,11 @@ def watch_stop(every: int = 60) -> None:
         STOP.wait(every)
 
 
-def run(name: str, cmd: list[str], timeout: int, cwd: Path | None = None) -> bool:
+# Bước GPU cỡ 8 câu: quá giờ này là treo (bản tập dượt lần 5 chờ tới 3 giờ ở khởi tạo vLLM).
+TIMEOUTS = {"online_run": 3600, "eval_test_online": 3600}
+
+
+def run(name: str, cmd: list[str], timeout: int, cwd: Path | None = None, ok_if: str | None = None) -> bool:
     """Chạy một bước, in đầu ra ngay khi có (log trực tiếp của Kaggle: `kaggle kernels logs -f`) và lưu đầy đủ.
 
     Lần 1 của bản tập dượt gom đầu ra tới cuối bước, nên suốt 3 giờ của bước log không thấy được gì.
@@ -188,6 +192,8 @@ def run(name: str, cmd: list[str], timeout: int, cwd: Path | None = None) -> boo
                 break
     reader.join(timeout=60)
     text = "".join(lines) + {-1: f"\ntimeout sau {timeout}s\n", -2: "\ndừng theo yêu cầu\n"}.get(rc, "")
+    if ok_if is not None and ok_if in text and rc > 0:
+        rc = 0  # nvidia-smi trả 14 khi có cảnh báo infoROM dù vẫn in đủ bảng (bản tập dượt lần 5)
     steps = WORK / "steps"
     steps.mkdir(exist_ok=True)
     (steps / f"{name}.txt").write_text(text, encoding="utf-8")
@@ -237,19 +243,42 @@ def collect() -> None:
             shutil.copy2(SRC / rel, out / rel)
 
 
+def seed_from_input() -> str | None:
+    """Chạy tiếp từ dữ liệu của một lần trước (push.py --seed <thư mục out> --start-at <bước>): chép data/ và runs/
+    vào gốc mã rồi trả tên bước bắt đầu; các bước trước đó coi như đã đạt. Không có thì chạy từ đầu."""
+    for tgz in Path("/kaggle/input").rglob("rehearsal-seed.tar.gz"):
+        with tarfile.open(tgz) as tf:
+            tf.extractall(SRC, filter="data")
+        meta = json.loads((tgz.parent / "rehearsal-seed.json").read_text(encoding="utf-8"))
+        return str(meta["start_at"])
+    return None
+
+
 def main() -> None:
     print(f"RUN_ID {RUN_ID}", flush=True)
     threading.Thread(target=watch_stop, daemon=True).start()
     py = sys.executable
-    run("gpu_info", ["nvidia-smi"], 60)
+    run("gpu_info", ["nvidia-smi"], 60, ok_if="NVIDIA-SMI")
     src = find_source()
     REPORT["source"] = str(src)
+    start_at = seed_from_input()
+    if start_at is not None:
+        names = [n for n, _, _ in STEPS]
+        if start_at not in names:
+            raise SystemExit(f"--start-at {start_at}: không có bước này")
+        REPORT["seeded_from"] = start_at
+        print(f"chạy tiếp từ {start_at} với dữ liệu seed", flush=True)
     ok = run("pip_vllm", [py, "-m", "pip", "install", "-q", f"vllm=={VLLM_VERSION}"], 5400) and run(
         "pip_ttalloc", [py, "-m", "pip", "install", "-q", "--ignore-requires-python", "-e", str(src)], 1800
     )
     if ok:
         passed: set[str] = set()
+        seeded = set(names[: names.index(start_at)]) if start_at is not None else set()
         for name, args, needs in STEPS:
+            if name in seeded:
+                REPORT["steps"][name] = {"ok": True, "rc": None, "seeded": True}
+                passed.add(name)
+                continue
             if STOP.is_set():
                 REPORT["steps"][name] = {"ok": False, "rc": None, "skipped": "dừng theo yêu cầu"}
                 continue
@@ -265,7 +294,7 @@ def main() -> None:
                 REPORT["steps"][name] = {"ok": False, "rc": None, "error": str(exc)}
                 save()
                 continue
-            if run(name, [py, "-m", "ttalloc.cli", *argv], 3 * 3600, cwd=src):
+            if run(name, [py, "-m", "ttalloc.cli", *argv], TIMEOUTS.get(name, 3 * 3600), cwd=src):
                 passed.add(name)
         collect()
     REPORT["ok"] = all(s["ok"] for s in REPORT["steps"].values())

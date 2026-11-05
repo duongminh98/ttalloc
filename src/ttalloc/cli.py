@@ -743,7 +743,7 @@ def online_run(exp: Exp = None, sets: Sets = None) -> None:
 
 
 def _online(cfg: Any, prefix: str) -> Path:
-    from ttalloc.context import model_context, prompt_ids_for
+    from ttalloc.context import load_split_questions, model_context, prompt_ids_for
     from ttalloc.online.run import run_online
     from ttalloc.online.timing import estimate_max_active, kv_cache_tokens
     from ttalloc.runs import gpu_info
@@ -752,11 +752,16 @@ def _online(cfg: Any, prefix: str) -> Path:
     if len(cfg.splits) != 1:
         raise typer.BadParameter("chạy thật nhận đúng một split")
     split = cfg.splits[0]
-    env = load_env(cfg, split)
     ctx = model_context(cfg)
-    qs = list(env.questions.values())
+    qs = load_split_questions(split)  # đúng thứ tự và nội dung của env.questions
     pids = prompt_ids_for(qs, ctx)
+    # Khởi tạo vLLM trước khi nạp bộ ước lượng: load_env chạy LightGBM (OpenMP), và vLLM fork tiến trình EngineCore;
+    # fork sau khi OpenMP đã có luồng thì EngineCore treo ở bước nạp model (bản tập dượt lần 5: online run và
+    # eval-test online treo tới hết 3 giờ ở "Using V2 Model Runner").
     gen = _vllm(ctx, max(len(v) for v in pids.values()) + cfg.log.l_log + _bounds_extra(ctx))
+    env = load_env(cfg, split)
+    if [q.qid for q in qs] != list(env.questions):
+        raise AssertionError("câu hỏi của chạy thật khác env.questions")
     if cfg.online.max_active is not None:
         m_active = cfg.online.max_active
     else:

@@ -60,7 +60,12 @@ def git_files() -> list[str]:
     return [f for f in out.stdout.splitlines() if f and (ROOT / f).is_file() and not f.startswith("ops/kaggle/_build")]
 
 
-def upload_source(user: str) -> None:
+SEED_PARTS = ("data", "runs")  # không đưa configs/locked: bước lock chạy lại sẽ báo tệp đã có
+
+
+def upload_source(user: str, seed: Path | None = None, start_at: str | None = None) -> None:
+    """Đóng gói mã nguồn thành dataset riêng tư. Với `seed` (thư mục out/ của một lần tập dượt trước), kèm data/ và
+    runs/ của nó để ops/kaggle/rehearsal.py chạy tiếp từ bước `start_at` (dataset riêng tư; repo công khai không có)."""
     ds_dir = BUILD / "dataset"
     if ds_dir.exists():
         shutil.rmtree(ds_dir)
@@ -68,6 +73,14 @@ def upload_source(user: str) -> None:
     with tarfile.open(ds_dir / f"{DATASET_SLUG}.tar.gz", "w:gz") as tf:
         for f in git_files():
             tf.add(ROOT / f, arcname=f)
+    if seed is not None:
+        if not start_at:
+            raise SystemExit("--seed cần --start-at <bước>")
+        with tarfile.open(ds_dir / "rehearsal-seed.tar.gz", "w:gz") as tf:
+            for part in SEED_PARTS:
+                if (seed / part).exists():
+                    tf.add(seed / part, arcname=part)
+        (ds_dir / "rehearsal-seed.json").write_text(json.dumps({"start_at": start_at}), encoding="utf-8")
     meta = {"title": DATASET_SLUG, "id": f"{user}/{DATASET_SLUG}", "licenses": [{"name": "other"}]}
     (ds_dir / "dataset-metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     status = kaggle("datasets", "status", f"{user}/{DATASET_SLUG}", check=False).lower()
@@ -306,6 +319,8 @@ def main() -> None:
     ap.add_argument("--watch-only", action="store_true", help="không đẩy gì, chỉ theo dõi kernel đã đẩy")
     ap.add_argument("--fail-fast", action="store_true", help="thoát ngay khi có bước lỗi hoặc log có dấu hiệu sự cố")
     ap.add_argument("--poll", type=int, default=30)
+    ap.add_argument("--seed", type=Path, help="thư mục out/ của lần tập dượt trước, để chạy tiếp (cần --start-at)")
+    ap.add_argument("--start-at", help="bước bắt đầu khi dùng --seed, ví dụ online_run")
     ap.add_argument("--stop", action="store_true", help="yêu cầu lần chạy gần nhất tự dừng (ops/kaggle/stop.txt)")
     args = ap.parse_args()
     if args.stop:
@@ -315,7 +330,7 @@ def main() -> None:
     kernel = f"{user}/ttalloc-{args.name.replace('_', '-')}"
     if not args.watch_only:
         if not args.no_upload:
-            upload_source(user)
+            upload_source(user, args.seed, args.start_at)
         kernel = push_kernel(user, args.name)
         if args.no_wait:
             print(f"Đã đẩy {kernel}. Theo dõi: uv run --group ops python ops/kaggle/push.py {args.name} --watch-only")

@@ -79,7 +79,9 @@ def run_online(
                     "calib_spend_ratio": cal.spend_ratio,
                     "budget_underused": cal.budget_underused,
                 }
-            sim_res = run_draws(env, m, ref_draws, allowance, cfg.sim.workers)
+            # Một tiến trình: run_draws với workers > 1 fork, mà tiến trình này đang giữ engine vLLM (luồng, CUDA);
+            # fork lúc đó dễ treo. Kết quả mỗi lần rút không phụ thuộc số tiến trình.
+            sim_res = run_draws(env, m, ref_draws, allowance, 1)
             sim_ref += [
                 {
                     "alpha": alpha,
