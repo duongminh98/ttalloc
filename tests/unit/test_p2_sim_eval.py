@@ -312,6 +312,16 @@ def test_report_builds(sim_runs: list[Path], tmp_path: Path) -> None:
     assert set(cells.method) == {"B2", "M3"} and (cells.spend_ratio <= 1.0).all()
 
 
+def test_report_keeps_runs_apart(sim_runs: list[Path], tmp_path: Path) -> None:
+    # Hai lần chạy cùng ô (split, batch, method, alpha) và cùng số lần rút: không được cộng dồn token của nhau.
+    build_report(sim_runs, tmp_path / "rep", np.random.default_rng(0), n_boot=200)
+    one = cell_table(pd.read_parquet(sim_runs[0] / "per_question.parquet"))
+    both = pd.read_csv(tmp_path / "rep" / "accuracy.csv")
+    assert len(both) == 2 * len(one) and set(both.run) == {d.name for d in sim_runs}
+    assert np.allclose(sorted(both.spend_ratio), sorted([*one.spend_ratio, *one.spend_ratio]))
+    assert set(pd.read_csv(tmp_path / "rep" / "diff_vs_B2.csv").run) == {d.name for d in sim_runs}
+
+
 # ---------------------------------------------------------------- thống kê, chỉ số, cổng (P2.T17–T19)
 
 

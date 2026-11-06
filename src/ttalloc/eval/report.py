@@ -42,7 +42,7 @@ def _markdown(df: pd.DataFrame) -> str:
 
 def comparison_table(pq: pd.DataFrame, ref: str, rng: np.random.Generator, n_boot: int, level: float) -> pd.DataFrame:
     rows = []
-    for (split, batch), g in pq.groupby(["split", "batch"]):
+    for (run, split, batch), g in pq.groupby(["run", "split", "batch"]):
         for m in sorted(set(g.method) - {ref}):
             for a in sorted(g.alpha.unique()):
                 try:
@@ -51,6 +51,7 @@ def comparison_table(pq: pd.DataFrame, ref: str, rng: np.random.Generator, n_boo
                     continue
                 rows.append(
                     {
+                        "run": run,
                         "split": split,
                         "batch": batch,
                         "method": m,
@@ -66,14 +67,15 @@ def comparison_table(pq: pd.DataFrame, ref: str, rng: np.random.Generator, n_boo
 
 def auc_table(cells: pd.DataFrame, ref: str = "B2") -> pd.DataFrame:
     rows = []
-    for (split, batch, method), g in cells.groupby(["split", "batch", "method"]):
+    for (run, split, batch, method), g in cells.groupby(["run", "split", "batch", "method"]):
         row: dict[str, Any] = {
+            "run": run,
             "split": split,
             "batch": batch,
             "method": method,
             "auc": auc_over_alpha(g.alpha.to_numpy(), g.accuracy.to_numpy()),
         }
-        r = cells[(cells.split == split) & (cells.batch == batch) & (cells.method == ref)]
+        r = cells[(cells.run == run) & (cells.split == split) & (cells.batch == batch) & (cells.method == ref)]
         if method != ref and len(r) >= 2:
             saved = tokens_saved_vs(
                 r.tokens.to_numpy(), r.accuracy.to_numpy(), g.tokens.to_numpy(), g.accuracy.to_numpy()
@@ -83,6 +85,11 @@ def auc_table(cells: pd.DataFrame, ref: str = "B2") -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _run_tag(df: pd.DataFrame, run: str) -> str:
+    """Tiền tố tên hình: chỉ thêm tên lần chạy khi báo cáo gộp nhiều lần chạy."""
+    return f"{run}_" if df.run.nunique() > 1 else ""
+
+
 def plot_accuracy(cells: pd.DataFrame, out: Path) -> list[Path]:
     import matplotlib
 
@@ -90,7 +97,7 @@ def plot_accuracy(cells: pd.DataFrame, out: Path) -> list[Path]:
     import matplotlib.pyplot as plt
 
     paths = []
-    for (split, batch), g in cells.groupby(["split", "batch"]):
+    for (run, split, batch), g in cells.groupby(["run", "split", "batch"]):
         fig, ax = plt.subplots(figsize=(5, 3.5))
         for m, gm in g.groupby("method"):
             gm = gm.sort_values("alpha")
@@ -100,7 +107,7 @@ def plot_accuracy(cells: pd.DataFrame, out: Path) -> list[Path]:
         ax.set_title(f"{split} / {batch}")
         ax.grid(alpha=0.3)
         ax.legend()
-        p = out / f"accuracy_{split}_{batch}.png"
+        p = out / f"accuracy_{_run_tag(cells, run)}{split}_{batch}.png"
         fig.tight_layout()
         fig.savefig(p, dpi=150)
         plt.close(fig)
@@ -139,13 +146,13 @@ def plot_allocation(diff: pd.DataFrame, out: Path) -> list[Path]:
     import matplotlib.pyplot as plt
 
     paths = []
-    for (split, batch, alpha), g in diff.groupby(["split", "batch", "alpha"]):
+    for (run, split, batch, alpha), g in diff.groupby(["run", "split", "batch", "alpha"]):
         piv = g.pivot_table(index="diff_bin", columns="method", values="tokens")
         fig, ax = plt.subplots(figsize=(5, 3.5))
         piv.plot.bar(ax=ax)
         ax.set_ylabel("token trung bình mỗi câu")
         ax.set_title(f"{split} / {batch} / alpha={alpha}")
-        p = out / f"allocation_{split}_{batch}_a{alpha}.png"
+        p = out / f"allocation_{_run_tag(diff, run)}{split}_{batch}_a{alpha}.png"
         fig.tight_layout()
         fig.savefig(p, dpi=150)
         plt.close(fig)

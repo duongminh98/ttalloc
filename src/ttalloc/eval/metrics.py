@@ -14,10 +14,15 @@ def with_total(pq: pd.DataFrame) -> pd.DataFrame:
     return pq.assign(total=pq[list(COST_FIELDS)].sum(axis=1))
 
 
+def cell_keys(pq: pd.DataFrame) -> list[str]:
+    """Khóa của một ô; có cột `run` (gộp nhiều thư mục chạy) thì tách theo lần chạy, vì số lần rút trùng nhau."""
+    return (["run"] if "run" in pq.columns else []) + ["split", "batch", "method", "alpha"]
+
+
 def cell_table(pq: pd.DataFrame) -> pd.DataFrame:
     """Độ chính xác (trung bình qua lần rút) và token theo loại cho mỗi (split, batch, method, alpha)."""
     pq = with_total(pq)
-    keys = ["split", "batch", "method", "alpha"]
+    keys = cell_keys(pq)
     per_draw = pq.groupby([*keys, "draw"]).agg(
         acc=("correct", "mean"),
         tokens=("total", "sum"),
@@ -101,7 +106,7 @@ def difficulty_bins(pq: pd.DataFrame, nat_acc: dict[str, float] | None) -> pd.Se
 def by_difficulty(pq: pd.DataFrame, nat_acc: dict[str, float] | None) -> pd.DataFrame:
     pq = with_total(pq).assign(diff_bin=lambda d: difficulty_bins(d, nat_acc))
     return (
-        pq.groupby(["split", "batch", "method", "alpha", "diff_bin"])
+        pq.groupby([*cell_keys(pq), "diff_bin"])
         .agg(accuracy=("correct", "mean"), tokens=("total", "mean"), n=("correct", "size"))
         .reset_index()
     )
