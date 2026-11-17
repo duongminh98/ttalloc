@@ -62,7 +62,11 @@ p = hf_hub_download(os.environ["TTALLOC_HF_REPO"], "code/ttalloc-src.tar.gz", re
 tarfile.open(p).extractall("/root/ttalloc", filter="data")
 EOF
 cd /root/ttalloc && sed 's/\r$//' ops/vast/bootstrap.sh > /root/bootstrap.sh
-nohup bash /root/bootstrap.sh > /root/job.log 2>&1 &
+if [ -n "$TTALLOC_DEADLINE_EPOCH" ]; then
+  nohup python3 ops/vast/guard.py > /root/guard.log 2>&1 &
+else
+  nohup bash /root/bootstrap.sh > /root/job.log 2>&1 &
+fi
 """
 
 # Mã thoát của `watch`, để agent đang theo dõi biết phải làm gì.
@@ -316,7 +320,8 @@ def main() -> None:
         res = call("PUT", f"/asks/{a.offer}/", body)
         iid = res.get("new_contract")
         _save_state({"id": iid, "offer": a.offer, "job": a.job, "time": time.strftime("%Y-%m-%d %H:%M")})
-        print(json.dumps(res, indent=2))
+        safe = {k: v for k, v in res.items() if "key" not in k.lower() and "token" not in k.lower()}
+        print(json.dumps(safe, indent=2))
         print(f"máy {iid}: theo dõi bằng `vast.py watch {iid} --job {a.job} --destroy-when-done`")
     elif a.cmd == "status":
         for r in instances():

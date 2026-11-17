@@ -94,9 +94,11 @@ def generate_full(
     sampling: Sampling,
     chunk: int = 512,
     on_chunk: Callable[[list[dict[str, Any]]], None] | None = None,
+    initial_rows: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
-    jobs = [(q, s) for s in seeds for q in questions]
-    rows: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = list(initial_rows or [])
+    done = {(r["qid"], r["seed"]) for r in rows}
+    jobs = [(q, s) for s in seeds for q in questions if (q.qid, s) not in done]
     for i in range(0, len(jobs), chunk):
         part = jobs[i : i + chunk]
         reqs = [

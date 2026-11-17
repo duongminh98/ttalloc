@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -147,11 +148,14 @@ def run_deer(
     top_p: float,
     max_tokens: int,
     model_path: str,
+    on_chunk: Callable[[list[dict[str, Any]]], None] | None = None,
+    initial_rows: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     repo = ensure_repo(cfg)
     data_dir = work_dir / "deer_data"
     out_dir = work_dir / "deer_out"
-    rows: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = list(initial_rows or [])
+    done = {(r["qid"], r["seed"]) for r in rows}
     timing: dict[str, Any] = {}
     by_ds: dict[str, list[Question]] = {}
     for q in questions:
@@ -159,8 +163,13 @@ def run_deer(
     env = dict(os.environ)
     env.setdefault("CUDA_VISIBLE_DEVICES", "0")
     for seed in seeds:
-        for ds, qs in by_ds.items():
-            name = f"{ds}_s{seed}"
+        parts = [(ds, i, qs[i : i + cfg.baseline.chunk])
+                 for ds, qs in by_ds.items() for i in range(0, len(qs), cfg.baseline.chunk)]
+        for ds, offset, part in parts:
+            qs = [q for q in part if (q.qid, seed) not in done]
+            if not qs:
+                continue
+            name = f"{ds}_s{seed}_part{offset}"
             write_dataset(qs, data_dir, name)
             cmd = deer_command(
                 repo, model_cfg, model_path, data_dir, out_dir, name, cfg, temperature, top_p, max_tokens, run_time=seed
@@ -172,5 +181,10 @@ def run_deer(
             files = sorted((out_dir).rglob(f"{name}/*.jsonl"))
             if not files:
                 raise FileNotFoundError(f"DEER không ghi đầu ra cho {name} trong {out_dir}")
-            rows += parse_deer_output(files[-1].read_text(encoding="utf-8").splitlines(), qs, codec, seed)
+            new = parse_deer_output(files[-1].read_text(encoding="utf-8").splitlines(), qs, codec, seed)
+            if {r["qid"] for r in new} != {q.qid for q in qs} or len(new) != len(qs):
+                raise ValueError(f"DEER incomplete/duplicate output: {name}")
+            rows += new
+            if on_chunk:
+                on_chunk(new)
     return rows, timing

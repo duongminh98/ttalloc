@@ -6,11 +6,13 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from ttalloc.baseline.checkpoint import RowCheckpoint
 from ttalloc.baseline.full import Sampling, generate_full
 from ttalloc.config import ExperimentCfg
 from ttalloc.engine.live_source import LiveSource
@@ -115,9 +117,35 @@ def run_equivalence(
     sampling: Sampling,
     cfg: ExperimentCfg,
     rng: np.random.Generator,
+    full_checkpoint: RowCheckpoint | None = None,
+    seg_checkpoint: RowCheckpoint | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any]]:
+    last = time.time()
+
+    def save_full(rows: list[dict[str, Any]]) -> None:
+        nonlocal last
+        now = time.time()
+        if full_checkpoint is not None:
+            full_checkpoint.add(rows, now - last)
+        last = now
+
     full = pd.DataFrame(
-        generate_full(source.gen, source.codec, questions, prompt_ids, seeds, sampling, chunk=cfg.baseline.chunk)
+        generate_full(source.gen, source.codec, questions, prompt_ids, seeds, sampling, chunk=cfg.baseline.chunk,
+                      on_chunk=save_full, initial_rows=full_checkpoint.rows if full_checkpoint else None)
     )
-    seg = pd.DataFrame(segmented_rows(source, questions, seeds, cfg))
+    if full_checkpoint is not None:
+        full_checkpoint.complete()
+    if seg_checkpoint is None:
+        seg = pd.DataFrame(segmented_rows(source, questions, seeds, cfg))
+    else:
+        done = {(r["qid"], r["seed"]) for r in seg_checkpoint.rows}
+        for seed in seeds:
+            pending = [q for q in questions if (q.qid, seed) not in done]
+            for i in range(0, len(pending), cfg.baseline.chunk):
+                t0 = time.time()
+                new = segmented_rows(source, pending[i:i + cfg.baseline.chunk], [seed], cfg)
+                seg_checkpoint.add(new, time.time() - t0)
+                print(f"segmented checkpoint {len(seg_checkpoint.rows)}", flush=True)
+        seg_checkpoint.complete()
+        seg = pd.DataFrame(seg_checkpoint.rows)
     return full, seg, equivalence_report(full, seg, rng, cfg.sim.n_boot)
