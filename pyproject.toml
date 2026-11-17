@@ -21,6 +21,7 @@ dependencies = [
     "scipy>=1.14",
     "statsmodels>=0.14",
     "matplotlib>=3.9",
+    "nltk>=3.9",  # official DEER imports nltk.ngrams (not preinstalled in the Vast image)
 ]
 
 [project.optional-dependencies]
