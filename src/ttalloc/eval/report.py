@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Hashable
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +86,7 @@ def auc_table(cells: pd.DataFrame, ref: str = "B2") -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _run_tag(df: pd.DataFrame, run: str) -> str:
+def _run_tag(df: pd.DataFrame, run: Hashable) -> str:
     """Tiền tố tên hình: chỉ thêm tên lần chạy khi báo cáo gộp nhiều lần chạy."""
     return f"{run}_" if df.run.nunique() > 1 else ""
 
