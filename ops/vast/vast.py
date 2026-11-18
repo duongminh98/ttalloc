@@ -52,6 +52,30 @@ DEFAULT_QUERY: dict[str, Any] = {
 }
 
 ONSTART = r"""#!/bin/bash
+set -e
+cleanup_failed_start() {
+  if [ -n "${TTALLOC_DEADLINE_EPOCH:-}" ]; then
+    python3 - >> /root/onstart.log 2>&1 <<'PY'
+import os, time, urllib.error, urllib.request
+iid = os.environ['CONTAINER_ID']
+if not iid.isdigit():
+    raise ValueError('invalid instance ID')
+url = f'https://console.vast.ai/api/v0/instances/{iid}/'
+req = urllib.request.Request(url, method='DELETE', headers={'Authorization': 'Bearer ' + os.environ['VAST_API_KEY']})
+while True:
+    try:
+        with urllib.request.urlopen(req, timeout=15):
+            break
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            break
+    except OSError:
+        pass
+    time.sleep(5)
+PY
+  fi
+}
+trap cleanup_failed_start ERR
 cd /root
 python3 -m pip install -q "huggingface_hub>=0.25" > /root/onstart.log 2>&1
 python3 - >> /root/onstart.log 2>&1 <<'EOF'
@@ -61,7 +85,8 @@ p = hf_hub_download(os.environ["TTALLOC_HF_REPO"], "code/ttalloc-src.tar.gz", re
                     token=os.environ["HF_TOKEN"], force_download=True)
 tarfile.open(p).extractall("/root/ttalloc", filter="data")
 EOF
-cd /root/ttalloc && sed 's/\r$//' ops/vast/bootstrap.sh > /root/bootstrap.sh
+cd /root/ttalloc
+sed 's/\r$//' ops/vast/bootstrap.sh > /root/bootstrap.sh
 if [ -n "$TTALLOC_DEADLINE_EPOCH" ]; then
   nohup python3 ops/vast/guard.py > /root/guard.log 2>&1 &
 else

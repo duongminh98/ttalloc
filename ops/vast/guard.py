@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import signal
 import subprocess
@@ -25,6 +26,10 @@ def stop_reason(
     if now - last_progress >= stall_seconds:
         return "no_generation_or_checkpoint_progress"
     return None
+
+
+def estimated_spend(prior_spend: float, observed: float, elapsed_seconds: float, dph: float) -> float:
+    return max(observed, prior_spend + max(0, elapsed_seconds) / 3600 * dph)
 
 
 def api(method: str, path: str) -> Any:
@@ -51,6 +56,7 @@ def main() -> int:
     deadline = float(os.environ["TTALLOC_DEADLINE_EPOCH"])
     start = float(os.environ["TTALLOC_RENT_START_EPOCH"])
     credit_start = float(os.environ["TTALLOC_PHASE_CREDIT_START"])
+    prior_spend = float(os.environ.get("TTALLOC_PHASE_PRIOR_SPEND_USD", "nan"))
     limit = float(os.environ["TTALLOC_PHASE_LIMIT_USD"])
     margin = float(os.environ["TTALLOC_BUDGET_MARGIN_USD"])
     dph = float(os.environ["TTALLOC_DPH"])
@@ -63,8 +69,11 @@ def main() -> int:
     reason = "startup_failure"
     last_progress = time.time()
     observed = 0.0
+    estimated = 0.0
     seen: dict[str, float] = {}
     try:
+        if not math.isfinite(prior_spend) or prior_spend < 0:
+            raise ValueError("invalid TTALLOC_PHASE_PRIOR_SPEND_USD")
         # Use a separate session so the entire bootstrap/job/engine tree can be terminated.
         child = subprocess.Popen(["bash", "/root/bootstrap.sh"], stdout=log, stderr=subprocess.STDOUT,
                                  start_new_session=True, text=True)
@@ -90,7 +99,7 @@ def main() -> int:
                 observed = max(observed, credit_start - float(api("GET", "/users/current/")["credit"]))
             except Exception as exc:
                 print(f"credit API unavailable: {type(exc).__name__}; time estimate still enforced", flush=True)
-            estimated = max(observed, max(0, now - start) / 3600 * dph)
+            estimated = estimated_spend(prior_spend, observed, now - start, dph)
             reason_or_none = stop_reason(now, deadline - sync_seconds - 30, estimated, limit, margin,
                                          last_progress, stall)
             if reason_or_none:
@@ -114,7 +123,8 @@ def main() -> int:
         try:
             Path("runs").mkdir(exist_ok=True)
             receipt = {"instance": iid, "reason": reason, "time": time.time(), "observed_spent": observed,
-                       "deadline": deadline, "limit_usd": limit}
+                       "deadline": deadline, "limit_usd": limit, "prior_spend_usd": prior_spend,
+                       "estimated_spent": estimated}
             Path(f"runs/guard-{iid}.json").write_text(json.dumps(receipt), encoding="utf-8")
             if job_log.exists():
                 import shutil

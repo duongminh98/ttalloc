@@ -100,7 +100,7 @@ def deer_command(
 
 
 def parse_deer_output(
-    lines: list[str], questions: list[Question], codec: TokenCodec | None, seed: int
+    lines: list[str], questions: list[Question], codec: TokenCodec | None, seed: int, *, save_raw: bool = False
 ) -> list[dict[str, Any]]:
     """Ghép đầu ra DEER với câu hỏi theo nội dung đề bài, trích đáp án sau `</think>` cuối cùng và chấm lại."""
     by_problem = {format_problem(q): q for q in questions}
@@ -115,7 +115,7 @@ def parse_deer_output(
         text = (d.get("generated_responses") or [""])[0]
         tail = text.rsplit("</think>", 1)[-1]
         extracted = extract_answer(tail, q.answer_type)
-        n_tokens = len(codec.encode(text)) if codec is not None else None
+        ids = codec.encode(text) if codec is not None else None
         rows.append(
             {
                 "qid": q.qid,
@@ -123,7 +123,7 @@ def parse_deer_output(
                 "dataset": q.dataset,
                 "problem": q.problem,
                 "gold": q.gold,
-                "n_tokens": n_tokens,
+                "n_tokens": len(ids) if ids is not None else None,
                 "think_tokens": len(codec.encode(text.split("</think>", 1)[0])) if codec else None,
                 "natural_end": "</think>" in text,
                 "finish_reason": "too_long" if d.get("too_long") else "stop",
@@ -134,6 +134,8 @@ def parse_deer_output(
                 "too_long": d.get("too_long"),
             }
         )
+        if save_raw:
+            rows[-1].update(raw_text=text, raw_token_ids=ids, raw_token_source="retokenized_deer_response")
     return rows
 
 
@@ -150,6 +152,7 @@ def run_deer(
     model_path: str,
     on_chunk: Callable[[list[dict[str, Any]]], None] | None = None,
     initial_rows: list[dict[str, Any]] | None = None,
+    save_raw: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     repo = ensure_repo(cfg)
     data_dir = work_dir / "deer_data"
@@ -181,7 +184,8 @@ def run_deer(
             files = sorted((out_dir).rglob(f"{name}/*.jsonl"))
             if not files:
                 raise FileNotFoundError(f"DEER không ghi đầu ra cho {name} trong {out_dir}")
-            new = parse_deer_output(files[-1].read_text(encoding="utf-8").splitlines(), qs, codec, seed)
+            lines = files[-1].read_text(encoding="utf-8").splitlines()
+            new = parse_deer_output(lines, qs, codec, seed, save_raw=save_raw)
             if {r["qid"] for r in new} != {q.qid for q in qs} or len(new) != len(qs):
                 raise ValueError(f"DEER incomplete/duplicate output: {name}")
             rows += new

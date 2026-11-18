@@ -304,6 +304,7 @@ def baseline_full(
     exp: Exp = None,
     sets: Sets = None,
     resume_from: Annotated[Path | None, typer.Option("--resume-from")] = None,
+    save_raw: Annotated[bool, typer.Option(help="Lưu văn bản và token đầu ra trong checkpoint")] = False,
 ) -> None:
     """Sinh liền mạch, không gợi, không dừng sớm (P1.T5)."""
     from ttalloc.baseline.full import generate_full, profile_sampling, require_approval, summarize, write_results
@@ -341,6 +342,7 @@ def baseline_full(
         cfg.baseline.chunk,
         on_chunk=checkpoint,
         initial_rows=cp.rows,
+        save_raw=save_raw,
     )
     cp.complete()
     s = summarize(rows, cp.seconds) | {"profile": profile, "split": split, "datasets": datasets}
@@ -360,6 +362,7 @@ def baseline_deer(
     exp: Exp = None,
     sets: Sets = None,
     resume_from: Annotated[Path | None, typer.Option("--resume-from")] = None,
+    save_raw: Annotated[bool, typer.Option(help="Lưu văn bản DEER và token tái mã hóa trong checkpoint")] = False,
 ) -> None:
     """Chạy repo DEER chính thức (third_party/DEER ở commit cố định) và chấm lại (P1.T5, P4.T5)."""
     import time
@@ -402,6 +405,7 @@ def baseline_deer(
         path,
         on_chunk=checkpoint,
         initial_rows=cp.rows,
+        save_raw=save_raw,
     )
     cp.complete()
     s = summarize(rows, cp.seconds) | {"profile": profile, "timing": timing, "split": split}

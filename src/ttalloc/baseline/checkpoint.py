@@ -13,6 +13,15 @@ def _digest(value: Any) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
+def read_payload(path: Path, expected_sha256: str | None = None) -> dict[str, Any]:
+    obj = json.loads(path.read_text(encoding="utf-8"))
+    payload: dict[str, Any] = obj["payload"]
+    sha256 = _digest(payload)
+    if obj["sha256"] != sha256 or (expected_sha256 is not None and expected_sha256 != sha256):
+        raise ValueError(f"checkpoint checksum mismatch: {path}")
+    return payload
+
+
 class RowCheckpoint:
     def __init__(
         self, path: Path, identity: dict[str, Any], keys: list[tuple[str, int]], resume: Path | None = None
@@ -25,10 +34,9 @@ class RowCheckpoint:
         self.rows: list[dict[str, Any]] = []
         self.seconds = 0.0
         if resume is not None:
-            obj = json.loads(resume.read_text(encoding="utf-8"))
-            payload = obj["payload"]
-            if obj["sha256"] != _digest(payload) or payload["identity"] != identity:
-                raise ValueError("checkpoint checksum or config/selection mismatch")
+            payload = read_payload(resume)
+            if payload["identity"] != identity:
+                raise ValueError("checkpoint config/selection mismatch")
             self.rows = payload["rows"]
             self.seconds = float(payload["seconds"])
         self._validate(self.rows, self.seconds)
