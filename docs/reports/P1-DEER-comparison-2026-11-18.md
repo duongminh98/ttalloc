@@ -84,3 +84,8 @@ Môi trường chấm gốc cũng có mâu thuẫn: `requirements.txt` ghim SymP
 4. Thuê lại GPU cần dự toán/duyệt ở thời điểm thực hiện. Trần lịch sử 3,25 USD/12 giờ là cộng dồn theo deadline gốc, không tự gia hạn hoặc đặt lại khi thuê mới. Lần này không chi thêm GPU.
 
 Không tự áp dụng đề xuất này vào PLAN hay driver. ADR-022 ghi đây là quyết định đang chờ; mã và cổng hiện hành giữ nguyên. Phần công việc hiện tại hoàn thành ở đối chiếu, không phải chạy tiếp GPU.
+
+
+## 6. Quy?t ??nh sau b?o c?o
+
+Ng?y 18/11/2026, ng??i d?ng duy?t ngo?i l? t?i l?p Full, y?u c?u gi? c? 88,2% / 87,0% v? t?m offer ?? tr?nh chi ph? ch?y ti?p. C?c m?c ?ch?a duy?t? ph?a tr?n m? t? th?i ?i?m k?t th?c ??i chi?u, nay ???c c?p nh?t b?ng quy?t ??nh n?y v? ADR-022. Ngo?i l? kh?ng bi?n c?ng s? h?c th?nh ??t, kh?ng x?a gi?i h?n thi?u raw response, kh?ng m? r?ng sang DEER/equivalence. Quy?n thu? m?i v?n ?ang ch? b?o gi?; kh?ng ch?y l?i Full ho?c P2.
