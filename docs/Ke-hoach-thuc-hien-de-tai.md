@@ -4,7 +4,11 @@
 **MSSV:** 23021937  
 **Đề tài:** Phân bổ thích ứng tài nguyên suy luận cho mô hình suy luận lớn  
 *(Adaptive Test-Time Compute Allocation for Large Reasoning Models)*  
-**Phiên bản:** 2.1. Kế hoạch chia theo phase, không gắn với mốc thời gian, và được rà soát lại sau mỗi cổng quyết định (mục 8).
+**Phiên bản:** 2.3 (18/11/2026). Kế hoạch thực hiện tối thiểu, được rà soát lại theo số đo GPU và sau mỗi cổng quyết định (mục 8).
+
+**Thay đổi ở bản 2.3:** cập nhật dự toán từ `gpu_check` RTX 3090 đã hoàn tất. Với đơn giá đã thuê 0,234444 USD/giờ gồm 60 GB disk cho mọi đợt, kịch bản cơ sở khoảng 40,62 giờ GPU và 10,28 USD cả phần đã chạy; chuẩn bị 15 USD vẫn là khoản dự phòng có điều kiện. Throughput sinh liền mạch đã đo không được coi là tốc độ logger chuỗi dài. Bảng chi tiết, phần đã chi/còn lại và các kịch bản nằm ở mục 3.3.1; bảng 17/11 dưới đây giữ làm lịch sử, không phải dự toán cập nhật.
+
+**Thay đổi ở bản 2.2:** dùng một Qwen3-1,7B, ghi 500 câu huấn luyện × 4 seed, 400 câu xác thực × 8 seed và 560 câu kiểm tra chính × 8 seed. Mục tiêu chi phí khoảng 10 USD, chuẩn bị 15 USD có dự phòng; đây là ước tính có điều kiện, không phải cam kết đủ tiền cho mọi tình huống. Chỉ tăng train khi learning curve yêu cầu và đã duyệt lại chi phí. Chưa tính P5; không thuê A100 chỉ để so tốc độ trong phương án tối thiểu. Chi tiết ở mục 3.3 và ADR-019.
 
 **Thay đổi ở bản 2.1 (03/11/2026):** model chính đổi từ R1-Distill-Qwen-7B sang Qwen3-1,7B để giảm chi phí GPU. Chỉ giữ một baseline là B2 (DEER với giới hạn nâng lên); các phương pháp so sánh còn lại chuyển sang phần để sau (mục 7.2, việc 5.1).
 
@@ -32,7 +36,7 @@ Bốn nguyên tắc xuyên suốt:
 | P0. Nền tảng | Hạ tầng, repo, dữ liệu, chia tập, chấm điểm | Danh sách ID đã khóa; vLLM chạy được trên máy chủ GPU | D1 |
 | P1. Engine và công cụ ghi | Sinh theo đoạn, gợi đáp án thử ở nhánh phụ, tái lập baseline, ghi dữ liệu | Baseline khớp số công bố; các kiểm thử của công cụ ghi đều đạt | D2 |
 | P2. Thăm dò | Dữ liệu thăm dò, bộ ước lượng và bộ mô phỏng phiên bản đầu, đo dư địa | Có quyết định ở cổng **G1** | D3 |
-| P3. Mô phỏng đầy đủ | Dữ liệu đầy đủ, mọi phương pháp, chỉnh tham số, khóa cấu hình, E1–E4 | Có quyết định ở cổng **G2** | D4 |
+| P3. Mô phỏng chính | Train 500 câu đã ghi, dữ liệu kiểm tra chính, B2/M2/M3, chỉnh tham số, khóa cấu hình, E1–E4 | Có quyết định ở cổng **G2** | D4 |
 | P4. Chạy thật | Bộ phân bổ trên vLLM, đo chi phí hệ thống (E5) | Có quyết định ở cổng **G3** | D5 |
 | P5. Mở rộng | Các phương pháp so sánh để sau, model thứ hai, tập sạch, tập ngoài miền, thành phần lô (E6) | Các phần được giao của P5 có kết quả | D6 |
 | P6. Hoàn thiện | Chốt số liệu, viết khóa luận, đóng gói, chuẩn bị bảo vệ | Có bản nộp cuối | D7, D8 |
@@ -57,7 +61,7 @@ Các ngưỡng dưới đây là đề xuất, cần thống nhất với giản
 | **RQ2.** Với cùng ngân sách $B$, phương pháp có trả lời đúng nhiều câu hơn các cách dừng sớm theo từng câu không? | E2 | Hơn DEER với giới hạn nâng lên (B2) ít nhất 2 điểm phần trăm, với khoảng tin cậy hiệu chỉnh Bonferroni không chứa 0, ở ít nhất một mức ngân sách $\alpha \le 0{,}5$ trên model chính; hoặc tiết kiệm ít nhất 15% token ở cùng độ chính xác |
 | **RQ3.** Phần cải thiện đến từ đâu? | E3, E4 | Hoàn thành các ablation và phân rã B2 → M2 → M3; mỗi kết luận có kiểm định thống kê. Phân rã đầy đủ (mục 7.2) làm khi có các phương pháp để sau |
 | Tính khả thi khi chạy thật | E5 | Đạt cổng G3 (mục 8); thời gian chạy và chi phí phụ được đo và báo cáo |
-| Tính tổng quát | E6 | Có kết quả trên model thứ hai, tập sạch và tập ngoài miền, kể cả khi kết quả âm tính |
+| Tính tổng quát (mở rộng, chưa nằm trong ngân sách tối thiểu) | E6 | Khi được giao thêm: báo cáo kết quả trên tập sạch, ngoài miền hoặc model thứ hai, kể cả khi kết quả âm tính |
 
 Nếu RQ2 cho kết quả âm tính, đề tài vẫn có kết quả hợp lệ khi có phân tích nguyên nhân (mục 8). Khi đó, đóng góp chính chuyển sang bộ dữ liệu ghi lại, bộ mô phỏng, và phân tích điều kiện để quỹ chung mang lại lợi ích.
 
@@ -71,6 +75,8 @@ Khi cần thu hẹp phạm vi, ví dụ vì thiếu GPU, vì một cổng không
 | Nên có | Tập sạch AIME 2026 và HMMT 02/2026; GPQA-Diamond; các thành phần lô; các phương pháp để sau B0, B1, M1, O1 |
 | Có thể | Các phương pháp để sau B3, B4, B5 và Dynasor-CoT; model thứ hai; chạy bất đồng bộ; chạy lần lượt với điều chỉnh giá; ngân sách khởi đầu theo độ khó dự đoán |
 | Ngoài phạm vi | Huấn luyện lại mô hình suy luận; phục vụ trực tuyến với ràng buộc độ trễ |
+
+**Phạm vi thực thi hiện tại:** chỉ phần bắt buộc, với train khởi đầu và dự toán là 500 câu. Giữ đủ seed, giới hạn chuỗi 32.768 token, 200 lần rút mô phỏng, cùng ngân sách chỉnh tham số và các ablation theo PLAN. Chạy thật tối thiểu vẫn có 6 lần trên MATH-500; việc rút gọn bảng trong báo cáo không hủy bước kiểm chứng này. Dataset mở rộng, model thứ hai và lưới chạy thật lớn hơn chỉ làm khi có yêu cầu và dự toán riêng. Giữ nguyên 1.500 ID train đã khóa; 500 câu được lấy bằng thứ tự `hash_order` hiện hành của logger, không dựng lại split.
 
 ### 2.3. Giả định của kế hoạch
 
@@ -106,7 +112,7 @@ Giá thay đổi theo cung cầu từng ngày; chọn máy đã xác minh, độ
 |---|---|
 | Máy | 1 × RTX 3090; đã xác minh; độ tin cậy ≥ 0,98; băng thông bộ nhớ Vast đo ≥ 780 GB/s; `cuda_max_good` ≥ 13.0; ≥ 8 vCPU; ≥ 32 GB RAM; mạng tải xuống ≥ 300 Mbps |
 | Container image | `vllm/vllm-openai:v0.32.0` (CUDA 13.0, 8,6 GB nén); phiên bản chính thức chốt ở việc 0.1 |
-| Chế độ chạy | SSH; Vast thay entrypoint của image, onstart script clone repo và cài gói |
+| Chế độ chạy | HTTPS; onstart tải gói mã từ dataset Hugging Face riêng tư, chạy bootstrap/job và đồng bộ log, không cần SSH |
 | Ổ đĩa | Container disk 60 GB; không dùng volume của Vast. Dữ liệu ghi được đồng bộ lên một dataset riêng tư trên Hugging Face sau mỗi lô |
 | Giá ngày 03/11/2026, máy khớp cấu hình trên, đã gồm 60 GB ổ đĩa | Theo yêu cầu 0,2356 USD/giờ; có thể bị ngắt 0,1317 USD/giờ |
 
@@ -123,45 +129,104 @@ Xóa máy (destroy) khi xong mỗi đợt; máy chỉ dừng (stop) vẫn bị t
 - Dữ liệu ghi lại không đưa vào git; chỉ lưu tệp kê khai kèm mã băm.
 - Mã tham khảo: repo [DEER](https://github.com/iie-ycx/DEER) cho lời nhắc gợi đáp án thử và cách tính độ tự tin; repo [Dynasor](https://github.com/hao-ai-lab/Dynasor) cho cách gợi đáp án qua prefix caching.
 
-### 3.3. Ước tính khối lượng tính toán
+### 3.3. Ngân sách thực hiện tối thiểu
 
-Chi phí ghi một chuỗi suy luận dài $L$ token xấp xỉ $\kappa L$, trong đó $\kappa \approx 1{,}2$–$2$ là hệ số cho phần gợi đáp án thử và câu trả lời ép buộc tại mọi điểm quyết định. Giá trị của $\kappa$ phụ thuộc vào dạng câu trả lời được chọn ở P1. Bảng dưới dùng các giả định sau; tất cả được đo lại ở P1 (việc 1.3 và 1.9):
+**Dự toán ban đầu ngày 17/11/2026; cập nhật sau kiểm tra GPU ở mục 3.3.1 bên dưới.**
 
-- $\kappa = 1{,}9$; mỗi chuỗi khi ghi tốn khoảng 12.000 token.
-- Độ dài trung bình một chuỗi của Qwen3-1,7B khoảng 6.300 token, ước lượng từ độ dài trong bảng 2 của bài DEER (MATH 5.160, AMC 8.637, AIME 13.758 token) và tỉ lệ các nguồn trong mỗi tập.
-- Thông lượng của Qwen3-1,7B trên một RTX 3090, lấy mức thận trọng: 1.000–1.300 token/giây khi ghi; 700–1.000 token/giây khi chạy thật, do phải chờ đồng bộ mỗi vòng. Trần lý thuyết theo băng thông bộ nhớ là khoảng 1.400–1.700 token/giây.
-- Ghi dữ liệu dùng máy có thể bị ngắt, cộng 10% cho phần phải chạy lại; các việc còn lại dùng máy theo yêu cầu. Giá theo mục 3.1; tỷ giá Vietcombank bán ra ngày 03/11/2026 là 25.970 đồng/USD.
+**Mốc lập ngân sách:** khoảng **10 USD** là mức tối thiểu khả thi theo các giả định dưới đây; chuẩn bị **15 USD** để có dự phòng. Quy đổi phục vụ kế hoạch bằng **26.000 đồng/USD**: lần lượt khoảng **260.000 đồng** và **390.000 đồng**, làm tròn khoản chuẩn bị thành **400.000 đồng**. Đây không phải tỷ giá ngân hàng hay báo giá GPU cập nhật ngày 17/11/2026; phí chuyển đổi/thanh toán thực tế phải cộng theo thẻ được sử dụng. Không kết luận “15 USD đủ cho cả đề tài”.
 
-| Phase | Hạng mục | Khối lượng | Token (triệu) | Loại máy | Giờ RTX 3090 | USD | Nghìn đồng |
-|---|---|---|---|---|---|---|---|
-| P0–P4 | Phát triển, test GPU, ghi thử để gỡ lỗi, smoke test (P0 ≈ 3–5 giờ, P1 ≈ 10–18, P2–P3 ≈ 0–2, P4 ≈ 4–7) | Tập nhỏ | — | Kaggle | ≈ 17–32 giờ hạn mức Kaggle, tính cả thời gian phiên mở | 0 | 0 |
-| P1 | Tái lập baseline theo cấu hình bài DEER (việc 1.2) | MATH-500 một lượt; AIME 2024 bốn lượt; model gốc và DEER | ≈ 7 | Theo yêu cầu | 1,5–2,5 | | |
-| P1 | Đo thông lượng (việc 1.3) | Tập con `val`, bốn kích thước lô | ≈ 2 | Theo yêu cầu | 0,5 | | |
-| P1 | Kiểm định tương đương (việc 1.5) | 400 câu `val` × 2 seed, sinh liền mạch và sinh theo đoạn | ≈ 15 | Theo yêu cầu | 3–4 | | |
-| P1 | Ghi thử, chọn dạng câu trả lời, đo nhiễu lời nhắc (việc 1.7, 1.8) | 100 câu `val` × 2 seed | ≈ 3,5 | Theo yêu cầu | 0,75–1 | | |
-| **P1** | | | **≈ 27** | | **≈ 6–8** | **1,41–1,88** | **37–49** |
-| **P2** | Ghi dữ liệu thăm dò | 500 câu `train` × 4 seed; 400 câu `val` × 8 seed | **≈ 62** | Có thể bị ngắt | **≈ 14,7–19,1** | **1,94–2,52** | **50–65** |
-| **P3** | Ghi nốt dữ liệu | 1.000 câu `train` còn lại × 4 seed; 560 câu `test_main` × 8 seed | **≈ 102** | Có thể bị ngắt | **≈ 23,9–31,1** | **3,15–4,10** | **82–106** |
-| P4 | Chạy thật E5 (việc 4.4) | MATH-500 × $\alpha = 0{,}5$ × {B2, M2} × 3 seed: 6 lần | ≈ 8 | Theo yêu cầu | 2,2–3,1 | | |
-| P4 | So thời gian với DEER chính thức và sinh liền mạch (việc 4.5) | MATH-500 một lượt | ≈ 4 | Theo yêu cầu | 0,8–1,1 | | |
-| **P4** | | | **≈ 12** | | **≈ 3–4,2** | **0,71–0,99** | **18–26** |
-| Dự phòng | Kiểm định tương đương thêm 2 seed; tái lập lại nếu lệch; chạy lại E5 một lần | | | Theo yêu cầu | ≈ 8–10 | 1,88–2,36 | 49–61 |
-| Khởi tạo máy | Khoảng 8 lần thuê, mỗi lần 15–20 phút tải image, model và cài gói | | | Theo yêu cầu | ≈ 2–3 | 0,47–0,71 | 12–18 |
-| Mạng | Tải image và model mỗi lần thuê; đẩy dữ liệu ghi lên Hugging Face | ≈ 110 GB | | | | ≈ 0,3 | ≈ 8 |
-| **Tổng P0–P4** | | | **≈ 200** | | **≈ 58–75** | **≈ 9,9–12,9** | **≈ 256–335** |
-| P5 (nếu làm) | Ghi `test_clean` và `test_ood` (việc 5.2) | 60 + 198 câu × 8 seed | ≈ 37–45 | Có thể bị ngắt | ≈ 9–14 | ≈ 1,2–1,9 | ≈ 31–49 |
-| **Tổng cả đề tài** | | | | | **≈ 67–89** | **≈ 11,1–14,8** | **≈ 288–384** |
+**Khối lượng tối thiểu của model chính:**
 
-Nếu thanh toán bằng thẻ của ngân hàng Việt Nam, cộng thêm phí giao dịch ngoại tệ khoảng 1–3%. Nạp trước 15 USD là đủ cho cả đề tài. Nếu thông lượng đo ở việc 1.3 đạt trần lý thuyết, tổng giảm khoảng 25%.
+| Dữ liệu | Số câu | Lần sinh mỗi câu | Số chuỗi |
+|---|---:|---:|---:|
+| Huấn luyện | 500 | 4 | 2.000 |
+| Xác thực | 400 | 8 | 3.200 |
+| Kiểm tra chính | 560 | 8 | 4.480 |
+| **Tổng chuỗi ghi** | | | **9.680** |
 
-Thời gian thực: P2 ghi liên tục khoảng một ngày, P3 khoảng 1–1,5 ngày, chạy nền trong lúc viết mã. Có thể thuê hai máy cùng lúc để rút ngắn một nửa thời gian mà tổng tiền không đổi.
+200 chuỗi `val` ghi thử ở P1 nằm trong 3.200 chuỗi xác thực này nếu cùng `log_hash`; logger tái sử dụng, không ghi lại. Các lượt baseline, kiểm định tương đương, study và chạy thật là công việc riêng, đã dự trù giờ ngoài bảng số chuỗi.
 
-Các phương pháp để sau (việc 5.1), mô phỏng, huấn luyện bộ ước lượng và chỉnh tham số chạy trên CPU, không tốn giờ GPU.
+**Giả định dự toán, phải đo lại trước ghi dữ liệu lớn:**
 
-Phương án khác:
-- **Chỉ dùng Kaggle:** khoảng 110–150 giờ Kaggle, tức 4–5 tuần hạn mức. Phải ghi bằng fp16 vì T4 không hỗ trợ bf16, và thời gian đo được ở E5 phản ánh T4.
-- **Giảm seed** (`train` × 2, `val` × 4, `test_main` × 4): tổng P0–P4 giảm còn khoảng 7,3–9,6 USD (190–250 nghìn đồng); đổi lại bộ ước lượng học trên ít chuỗi hơn và đường cong của M3 nhiễu hơn.
-- **A100 40 GB:** nhanh hơn RTX 3090 khoảng 1,7 lần nhờ băng thông bộ nhớ lớn hơn; tổng tiền tương đương hoặc cao hơn một chút.
+- Một RTX 3090, bf16, `answer.mode=short` đã chọn theo ADR-014; giới hạn chuỗi vẫn là 32.768 token. Không dùng số liệu tập dượt chuỗi 1.024 token làm kết quả thật.
+- Độ dài trung bình giả định 6.300 token; tổng token sinh khi ghi bằng 1,10 lần token chuỗi chính. Tỉ lệ 1,10 là giả định tạm dựa trên bản short tập dượt, chưa được xác nhận với chuỗi dài. Tổng khoảng **67,08 triệu token sinh**, chưa cộng phần ghi lại khi bị thu hồi.
+- Thông lượng hiệu dụng khi ghi giả định **800 token sinh/giây**, tính cả thời gian nhánh phụ và điều phối. Cộng **10% thời gian** cho ghi lại khi dùng máy có thể bị ngắt. Phần xử lý lời nhắc/cache được phản ánh trong thông lượng đo, không đồng nhất số token tính ngân sách với số token sinh dùng dự toán thời gian.
+- Giá đầu vào giả định **0,15 USD/giờ gồm GPU và 60 GB ổ đĩa** cho ghi dữ liệu; **0,24 USD/giờ gồm GPU và ổ đĩa** cho kiểm tra, baseline và chạy thật. Đây là mục tiêu chọn offer, không phải giá đã thuê hoặc bảo đảm có máy. Bảng giá ngày 03/11 ở mục 3.1 chỉ là lịch sử.
+- Kiểm tra một RTX 3090 trước. Không thuê thêm A100 chỉ để đo so sánh trong phạm vi tối thiểu; chỉ đề xuất đổi loại GPU khi số đo cho thấy cần và đã dự toán lại (ADR-019 thay phần so hai GPU của ADR-016).
+
+| Hạng mục | Cách tính/phạm vi | Giờ dự toán | USD |
+|---|---|---:|---:|
+| Khởi tạo các đợt thuê và kiểm tra GPU | Tổng dự trù, không tính mỗi job thêm 2 giờ | 2,0 | 0,48 |
+| Tái lập baseline và kiểm định tương đương | MATH-500 × 1, AIME 2024 × 4 cho model gốc và DEER; `val` 400 × 2 seed cho hai cách sinh | 7,0 | 1,68 |
+| Kiểm tra dạng trả lời và nhiễu lời nhắc | Study P1; token ghi thử đã nằm trong dòng ghi train/val | 1,5 | 0,36 |
+| Ghi train và val | 5.200 × 6.300 × 1,10 / 800 / 3.600 × 1,10 | 13,76 | 2,06 |
+| Ghi test_main | 4.480 × 6.300 × 1,10 / 800 / 3.600 × 1,10 | 11,86 | 1,78 |
+| Chạy thật tối thiểu và đối chiếu baseline | Hai phương pháp × 3 seed trên MATH-500 ở ngân sách 50%; pilot và đối chiếu theo job P4 | 4,5 | 1,08 |
+| Truyền dữ liệu | Khoản tạm tính, kiểm giá mạng từng offer | — | 0,75 |
+| **Tổng kịch bản đầu vào** | Chưa tính phí thanh toán hoặc sự cố ngoài dự trù | **40,62** | **8,19** |
+
+Các dòng tiền được làm tròn; tổng lấy từ phép tính chưa làm tròn. Khoảng 1,81 USD còn lại tới mốc 10 USD là đệm nhỏ; 5 USD từ 10 lên 15 là dự phòng thêm, không phải hạng mục bắt buộc phải chi. Với cùng giả định khác giữ nguyên, thông lượng chỉ 500 token/giây làm tổng khoảng **10,50 USD**; giá ghi dữ liệu 0,25 USD/giờ thay vì 0,15 làm tổng khoảng **10,76 USD**. Nhiều bất lợi đồng thời hoặc chuỗi dài hơn có thể vượt 15 USD.
+
+**Thứ tự chi tiền và điều kiện tiếp tục:**
+
+1. Kiểm tra tài khoản, số dư và offer; trình đơn giá/tổng chi trước khi thuê. Cập nhật tài liệu không cấp quyền thuê máy.
+2. Thuê một RTX 3090 cho `gpu_check`, baseline và pilot theo các bước P1. Dùng pilot chuỗi dài để đo lại độ dài, tỉ lệ token phụ, thông lượng và thời gian cài đặt. Cập nhật bảng dự toán bằng số đo trước khi duyệt `p2_log`; phép đo throughput ngắn chưa đủ thay thế pilot.
+3. Chạy `p2_log` với train 500 × 4 và val 400 × 8. Khi xong, đồng bộ và destroy máy; chạy học, learning curve, mô phỏng và G1 trên CPU. Không giữ máy thuê trong lúc chờ phân tích/chấm tay/phê duyệt.
+4. Nếu learning curve không yêu cầu tăng, giữ train 500 và chạy `p3_log` với `TTALLOC_TRAIN_LIMIT=500`, chỉ ghi thêm test_main × 8. Nếu đề xuất 1.000 hoặc 1.500 câu, dừng và dự toán lại trước khi ghi thêm; không bỏ qua kết quả learning curve để ép vừa ngân sách. Khi hết ngân sách, báo giới hạn nghiên cứu hoặc xin điều chỉnh phạm vi.
+5. Tune, E1–E4, thống kê, bảng/hình và G2 chạy trên CPU. Giữ 200 lần rút và 50 cấu hình tune mỗi phương pháp; số mức ngân sách không nhân số lần phải ghi log GPU.
+6. Sau quyết định G2, chạy E5 tối thiểu: MATH-500, ngân sách 50%, B2 và M2, mỗi phương pháp 3 seed. Giữ kiểm chứng thật và đo thời gian theo PLAN dù bảng báo cáo đã được rút gọn.
+7. Trước mỗi lần thuê hoặc thuê lại, lấy tổng tiền đã tiêu cộng chi phí còn lại dự kiến, so với mốc 10/15 USD và số dư. Khi dự kiến vượt khoản đã được duyệt, dừng phần tốn tiền và xin điều chỉnh, không tự thuê tiếp. Destroy máy khi xong; chỉ stop vẫn phát sinh phí ổ đĩa.
+
+**Chưa tính trong phương án này:** tăng train trên 500 câu; ghi `test_clean` (63 câu) và `test_ood` (198 câu); model thứ hai; so nhiều loại GPU; lưới E5 mở rộng. Các baseline phụ hoặc phân tích thêm dùng lại log có thể chỉ tốn CPU, nhưng vẫn cần được giao phạm vi và tuân thủ kỷ luật tập kiểm tra. Không giảm seed, giới hạn chuỗi, tiêu chí cổng hay độ dài dữ liệu chỉ để giữ mốc tiền.
+
+#### 3.3.1. Dự toán cập nhật sau `gpu_check` ngày 18/11/2026
+
+**Đầu vào đã đo:** một RTX 3090 24 GB tại Nhật, offer `47945256`, on-demand; GPU + 60 GB disk **0,234444 USD/giờ**; mạng tải xuống và tải lên mỗi chiều **0,0065104 USD/GB**. Đây là đơn giá của lần thuê đã kết thúc, không bảo đảm còn offer này cho lần thuê sau. `gpu_check` hoàn tất và destroy sau khoảng **0,40 giờ**; credit đã ghi nhận giảm **0,103731 USD** (phí có thể cập nhật trễ, chưa phải hóa đơn chốt). GPU bf16 đạt 7/7.
+
+| Cỡ lô | Token sinh | Giây đo | Token sinh/giây |
+|---|---:|---:|---:|
+| 8 | 32.017 | 47,04 | 680,60 |
+| 32 | 112.036 | 71,01 | 1.577,75 |
+| 128 | 373.174 | 172,06 | 2.168,91 |
+| 256 | 742.591 | 323,37 | 2.296,39 |
+
+Nguồn: `runs/20261117-171714_baseline-throughput_40a0b234942c/{throughput.json,meta.json,gpu_check_receipt.json}`; log ở `runs/vast-gpu-tests.txt` và `runs/vast-gpu_check.log`. Phép đo sinh liền mạch trên `val`, tối đa 4.096 token/câu; không phải logger tối đa 32.768 token với nhánh probe/answer. Lô 128/256 gần đầy KV cache và có request chờ; lô 256 chỉ hơn 128 khoảng 5,88% trong lần đo này. Có biên dịch JIT trong phép đo. Không dùng trực tiếp 2.296 token/giây để cam kết thời gian ghi thật hoặc chọn một cỡ lô tối ưu.
+
+**Mô hình dự toán cơ sở:** giữ 6.300 token chuỗi chính/câu, hệ số token sinh 1,10 và tốc độ hiệu dụng logger 800 token/giây từ dự toán trước vì pilot dài chưa chạy. 800 là giả định kế hoạch, không phải số đo logger suy ra từ benchmark; hai kịch bản 500 và 1.200 dưới đây cũng là giả định. Giữ dự phòng 10% thời gian ghi cho chạy lại/sự cố, kể cả khi tính giá on-demand; không áp dụng thêm lần nữa trong các dòng tổng. Giá 0,234444 USD/giờ được dùng cho toàn bộ công việc tương lai để không phụ thuộc giả định tìm được máy ghi 0,15 USD/giờ. Dự phòng mạng tương lai 0,75 USD tương đương khoảng 115 GB tổng lưu lượng hai chiều ở đơn giá đã đo, chưa phải lưu lượng dự báo chính xác.
+
+`Giờ ghi = số chuỗi × độ dài trung bình × hệ số token sinh / tốc độ hiệu dụng / 3.600 × 1,10`.
+
+| Hạng mục | Giờ GPU | USD | Cơ sở |
+|---|---:|---:|---|
+| `gpu_check` đã xong | 0,40 | 0,104 | Thời gian xấp xỉ và chênh lệch credit đã ghi nhận; tiền đã gồm mạng của đợt này |
+| Quỹ khởi tạo các đợt còn lại | 1,60 | 0,375 | Quỹ 2 giờ cũ trừ 0,40 giờ đã chạy; dự phòng, chưa đo mọi đợt |
+| P1 baseline + equivalence | 7,00 | 1,641 | Giữ dự toán cũ; bao gồm throughput chạy lại theo job hiện hành; chưa đo baseline/DEER/sinh đoạn dài |
+| P1 hai study | 1,50 | 0,352 | Giữ dự toán cũ; không tính thêm 200 chuỗi pilot ở dòng này |
+| Pilot 200 chuỗi + train/val còn lại: 5.200 chuỗi | 13,76 | 3,227 | Công thức trên; pilot khoảng 0,53 giờ, P2 còn 5.000 chuỗi khoảng 13,23 giờ |
+| P3 ghi test_main: 4.480 chuỗi | 11,86 | 2,780 | Công thức trên; không ghi thêm train đã có |
+| P4 E5 tối thiểu + pilot online + Full/DEER đối chiếu | 4,50 | 1,055 | Giữ dự toán cũ; 6 lần B2/M2, chưa đo chạy thật trên 500 câu |
+| Mạng các đợt tương lai | — | 0,750 | Khoản dự phòng, không cộng lại mạng của `gpu_check` |
+| **Còn phải chạy/chi** | **40,22** | **10,180** | Không bao gồm đợt `gpu_check` đã xong |
+| **Tổng từ trước `gpu_check` đến hết P4** | **40,62** | **10,283** | Tổng từ số chưa làm tròn; chưa gồm phí thanh toán |
+
+Phần ghi pilot 200 chuỗi nằm trong 5.200 chuỗi train/val; không cộng lại ở P1. 6 lần E5 là 3.000 lượt câu ở ngân sách 50%; không nhân lại với 9.680 chuỗi log. Các mô phỏng, mức alpha, 200 lần rút, 50 cấu hình tune và ablation dùng lại log trên CPU, không nhân chi phí ghi GPU.
+
+**Độ nhạy của phần ghi log:** các dòng ngoài logger vẫn giữ dự toán trên, vì chưa có số đo để co toàn bộ thời gian theo throughput sinh liền mạch.
+
+| Kịch bản giả định | Token chính/câu | Logger token/giây | Giờ GPU còn lại | Tổng giờ gồm đã chạy | USD còn lại | Tổng USD gồm đã chi |
+|---|---:|---:|---:|---:|---:|---:|
+| Thuận lợi | 6.300 | 1.200 | 31,68 | 32,08 | 8,18 | 8,28 |
+| **Cơ sở** | **6.300** | **800** | **40,22** | **40,62** | **10,18** | **10,28** |
+| Logger chậm | 6.300 | 500 | 55,59 | 55,99 | 13,78 | 13,89 |
+| Chuỗi dài và logger chậm | 10.000 | 500 | 79,67 | 80,07 | 19,43 | 19,53 |
+
+Đây không phải khoảng tin cậy và không phải cận trên của cả đề tài: baseline, study và E5 cũng có thể lâu hơn dự trù. Nếu tất cả 9.680 chuỗi đều chạm giới hạn 32.768, riêng token chuỗi chính đã gấp khoảng 5,20 lần giả định 6.300; pilot phải đo cả phân phối độ dài/tỉ lệ chạm trần. Tăng train cũng nằm ngoài bảng: thêm 500 câu × 4 seed tương đương khoảng **5,29 giờ và 1,24 USD** chỉ cho ghi ở kịch bản cơ sở, chưa kể mạng, khởi tạo và xử lý CPU thêm; cần duyệt riêng theo ADR-019.
+
+**Tiền cần chuẩn bị:** so với credit 4,896269 USD được ghi nhận sau `gpu_check`, kịch bản cơ sở còn thiếu khoảng **5,28 USD** để trả đủ 10,18 USD phần việc tương lai; kịch bản logger chậm còn thiếu khoảng **8,89 USD**. Nạp thêm khoảng **10 USD** sẽ đưa tổng tiền đã chuẩn bị từ 5 lên 15 USD và credit tương lai lên khoảng 14,90 USD, phù hợp quỹ dự phòng hiện hành nhưng không bảo đảm đủ kịch bản chuỗi dài/chậm. Đây là dự toán, không phải quyền nạp tiền/thuê máy/chạy tập kiểm tra. Mỗi lần thuê kiểm tra lại offer, số dư và hạn mức còn lại.
+
+**Thời gian toàn kế hoạch:** 40,22 giờ là thời gian GPU thuê còn lại, tương đương 1,68 ngày nếu chạy liên tục. Thực tế phải chia thành các đợt qua các điểm dừng; không coi 1,68 ngày là ngày hoàn thành đề tài. E1–E4, học bộ ước lượng/learning curve, tune, 19 cấu hình ablation, bảng/hình, cổng và tái lập P6 chạy trên CPU cá nhân, chi phí thuê GPU bằng 0 nếu đã destroy máy. Thời gian CPU chưa được benchmark trên dữ liệu thật; thời gian chấm tay 100 mẫu, phê duyệt, review và viết/bảo vệ khóa luận cũng chưa có số đo nên chưa cộng một số giờ tùy ý vào tổng. Sau P2 cần đo một phần lưới CPU để ước tính riêng lịch hoàn tất. P5/model thứ hai/test_clean/test_ood/E5 mở rộng vẫn ngoài dự toán tối thiểu.
+
+**Điểm cập nhật kế tiếp:** sau baseline và pilot chuỗi dài, thay độ dài, hệ số token sinh, tốc độ logger, thời gian study và số GB đồng bộ bằng số đo; sau G1 cập nhật learning curve; sau pilot online cập nhật E5. Không cắt seed/độ dài/tiêu chí để ép vừa tiền.
 
 ## 4. Dữ liệu
 
@@ -169,10 +234,10 @@ Phương án khác:
 
 | Tập | Vai trò | Nguồn | Số câu | Seed | Ghi chú |
 |---|---|---|---|---|---|
-| `train` | Huấn luyện bộ ước lượng | MATH tập train, đủ 5 mức độ khó (`EleutherAI/hendrycks_math`): 900 câu; DeepScaleR gồm AIME 1984–2023, AMC trước 2023, Omni-MATH, STILL (`agentica-org/DeepScaleR-Preview-Dataset`): 600 câu | 1.500 | 4 | Lấy mẫu phân tầng theo độ khó |
+| `train` | Huấn luyện bộ ước lượng | Pool đã khóa: MATH train 900 câu và DeepScaleR 600 câu | 500 sử dụng; pool 1.500 | 4 | Lấy 500 theo `hash_order` hiện hành; chỉ tăng theo learning curve và dự toán được duyệt |
 | `val` | Chỉnh mọi tham số; cổng G1 | AMC 2023 (`math-ai/amc23`): 40 câu; MATH tập train, giữ riêng: 360 câu | 400 | 8 | |
 | `test_main` | Kiểm tra chính | MATH-500 (`HuggingFaceH4/MATH-500`); AIME 2024 (`HuggingFaceH4/aime_2024`) và AIME 2025 (`MathArena/aime_2025`) | 560 | 8 | Cả AIME 2024 và AIME 2025 đều ra đời trước Qwen3 (04/2025), nên có thể đã lọt vào dữ liệu huấn luyện |
-| `test_clean` | Kiểm tra sạch | AIME 2026 và HMMT 02/2026 (MathArena) | 60 | 8 | Ra đời sau Qwen3; cần kiểm tra tên dataset trên Hugging Face |
+| `test_clean` | Kiểm tra theo thời gian, phần mở rộng | AIME 2026 và HMMT 02/2026 (MathArena) | 63 | 8 | 30 + 33 theo ADR-004; không nằm trong ngân sách tối thiểu |
 | `test_ood` | Kiểm tra ngoài miền | GPQA-Diamond (`Idavidrein/gpqa`, cần chấp nhận điều khoản) | 198 | 8 | Trắc nghiệm khoa học; bộ ước lượng chỉ học trên toán |
 
 ### 4.2. Quy tắc quản lý dữ liệu
@@ -245,7 +310,7 @@ Toàn bộ đặc tả mã nguồn, gồm kiến trúc, dữ liệu ghi lại, t
 | 1.4 | Chấm tay 100 mẫu ngẫu nhiên để kiểm tra bộ chấm điểm | SV | Bước chạy 3 |
 | 1.5 | Kiểm định tương đương giữa sinh liền mạch và sinh theo đoạn có nhánh phụ | Agent | P1.T6 |
 | 1.6 | Lưu trữ, logger chạy tiếp được sau khi bị ngắt, kiểm tra dữ liệu ghi. Khi ghi, điểm ghi dày hơn mức chính sách cần: hai điểm liên tiếp cách nhau hơn 128 và không quá 256 token | Agent | P1.T7, P1.T8, P1.T11 |
-| 1.7 | Chọn dạng câu trả lời: đầy đủ (tối đa 256 token) hay rút gọn (chỉ phần đáp án trong khung). Nếu hai dạng cho cùng kết quả chấm ở ít nhất 98% số điểm, chọn dạng rút gọn để giảm $\kappa$. Dạng đã chọn được dùng thống nhất cho ghi dữ liệu, mô phỏng và chạy thật | Agent đề xuất; SV duyệt | P1.T9, bước chạy 4 |
+| 1.7 | Dùng dạng `short` đã chọn theo ADR-014, thống nhất khi ghi và chạy thật. Tiếp tục study so với `full` trên chuỗi dài để báo cáo; không tự quay lại tiêu chí cũ coi `full` là chuẩn khi dạng đó bị cắt trước đáp án | Agent; SV duyệt nếu cần thay đổi | P1.T9, bước chạy 4 |
 | 1.8 | Đo nhiễu do lời nhắc: tại cùng một điểm, gợi bằng hai mẫu lời nhắc khác nhau trên 100 chuỗi | Agent | P1.T10, bước chạy 4 |
 | 1.9 | Cập nhật $\kappa$ và thông lượng ở mục 3.3 | SV | Bước chạy 2 và 5 |
 
@@ -293,10 +358,10 @@ Toàn bộ đặc tả mã nguồn, gồm kiến trúc, dữ liệu ghi lại, t
 
 | ID | Công việc | Thực hiện | Kế hoạch implement |
 |---|---|---|---|
-| 3.1 | Ghi nốt dữ liệu của model chính: `train` tới đủ 1.500 câu × 4 seed và `test_main` × 8 seed; `test_clean` và `test_ood` ghi ở việc 5.2. GPU chạy nền suốt phase | Agent; SV duyệt dùng GPU | Bước chạy 1 |
+| 3.1 | Phương án tối thiểu giữ `train` 500 câu × 4 seed đã ghi ở P2; `p3_log` nhận `TTALLOC_TRAIN_LIMIT=500` và chỉ ghi thêm `test_main` × 8 seed. Nếu learning curve đề xuất tăng train, dừng dự toán và xin duyệt trước; không tự ghi tới 1.500 câu. `test_clean` và `test_ood` thuộc mở rộng | Agent; SV duyệt dùng GPU | Bước chạy 1 |
 | 3.2 | *(Để sau, chuyển sang việc 5.1.)* Các phương pháp so sánh còn lại | — | P5.T1 |
 | 3.3 | Cài đặt các biến thể cho ablation (mục 7.4) | Agent | P3.T3 |
-| 3.4 | Bộ ước lượng v1 trên dữ liệu đầy đủ, với đủ đặc trưng ở [mục 4.3 của báo cáo phương pháp chi tiết](Bao-cao-Phuong-phap-chi-tiet.md#L120); so sánh LightGBM với logistic regression theo từng $h$, chọn theo log-loss trên `val` | Agent | Bước chạy 2 |
+| 3.4 | Bộ ước lượng v1 trên 500 câu train đã ghi, hoặc cỡ tăng thêm đã được duyệt, với đủ đặc trưng ở [mục 4.3 của báo cáo phương pháp chi tiết](Bao-cao-Phuong-phap-chi-tiet.md#L120); so sánh LightGBM với logistic regression theo từng $h$, chọn theo log-loss trên `val` | Agent | Bước chạy 2 |
 | 3.5 | Chỉnh tham số trên `val`: mọi phương pháp có cùng ngân sách chỉnh (50 cấu hình tìm ngẫu nhiên); một bộ tham số chung cho mọi mức $B$ | Agent | P3.T4, bước chạy 3 |
 | 3.6 | Khóa cấu hình và ghi vào sổ kiểm tra; chạy E1–E4 trên tập kiểm tra chính | Agent; SV duyệt cấu hình khóa | P3.T5–T6, bước chạy 3 và 4 |
 | 3.7 | Phân tích lỗi: tỉ lệ cắt nhầm theo độ khó; các trường hợp điển hình của từng loại lỗi | SV | — |

@@ -1,0 +1,4 @@
+interface:
+  display_name: "ttalloc · Kaggle GPU test"
+  short_description: "Chạy test GPU Kaggle, theo dõi và xử lý lỗi"
+  default_prompt: "Dùng $kaggle-gpu-test để chạy script kiểm thử GPU ttalloc được yêu cầu trên Kaggle, theo dõi kết quả và xử lý lỗi trong phạm vi cho phép."
