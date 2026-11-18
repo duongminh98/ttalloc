@@ -18,6 +18,7 @@ Cách dùng (từ gốc repo):
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import sys
@@ -159,7 +160,10 @@ def job_env(job: str, approved_by: str | None, self_destroy: bool, extra: list[s
     if missing:
         raise SystemExit(f"thiếu biến môi trường {missing}")
     if approved_by:
-        env["TTALLOC_APPROVED_BY"] = approved_by
+        if approved_by.isascii():
+            env["TTALLOC_APPROVED_BY"] = approved_by
+        else:
+            env["TTALLOC_APPROVED_BY_B64"] = base64.b64encode(approved_by.encode("utf-8")).decode("ascii")
     for kv in extra or []:  # --env TTALLOC_TRAIN_LIMIT=500 (p3_log, ADR-015)
         k, sep, v = kv.partition("=")
         if not sep or not k.startswith("TTALLOC_"):

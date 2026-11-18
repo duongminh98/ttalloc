@@ -6,6 +6,7 @@
 #   HF_TOKEN, TTALLOC_HF_REPO   đồng bộ qua Hugging Face (ops/hf_sync.py)
 #   TTALLOC_JOB                 tên công việc: ops/vast/jobs/<TTALLOC_JOB>.sh
 #   TTALLOC_APPROVED_BY         người duyệt, chỉ cho công việc chạm test_* (PLAN mục 7.5)
+#   TTALLOC_APPROVED_BY_B64     tên người duyệt UTF-8 mã hóa khi truyền qua Vast
 #   TTALLOC_SYNC_EVERY          số giây giữa hai lần đẩy dữ liệu lên (mặc định 600)
 #   TTALLOC_LOG_EVERY           số giây giữa hai lần đẩy đuôi log lên status/<job>.log (mặc định 60; bỏ qua nếu log không đổi)
 #   TTALLOC_FIX_WAIT            khi công việc lỗi: chờ bản mã sửa (push-code) tối đa bấy nhiêu giây rồi chạy lại
@@ -14,6 +15,10 @@
 #   TTALLOC_SELF_DESTROY=1 và VAST_API_KEY: tự xóa máy khi kết thúc (tùy chọn; mặc định `vast.py watch` xóa)
 set -uo pipefail
 cd /root/ttalloc
+if [ -z "${TTALLOC_APPROVED_BY:-}" ] && [ -n "${TTALLOC_APPROVED_BY_B64:-}" ]; then
+  TTALLOC_APPROVED_BY="$(printf '%s' "$TTALLOC_APPROVED_BY_B64" | base64 --decode)" || exit 2
+  export TTALLOC_APPROVED_BY
+fi
 JOB="${TTALLOC_JOB:?thiếu TTALLOC_JOB}"
 SYNC_EVERY="${TTALLOC_SYNC_EVERY:-600}"
 LOG_EVERY="${TTALLOC_LOG_EVERY:-60}"
@@ -82,3 +87,4 @@ if [ "$RC" -eq 0 ]; then status done "xong"; else status failed "mã thoát $RC;
 if [ "${TTALLOC_SELF_DESTROY:-0}" = "1" ] && [ -n "${VAST_API_KEY:-}" ] && [ -n "${CONTAINER_ID:-}" ]; then
   curl -s -X DELETE -H "Authorization: Bearer $VAST_API_KEY" "https://console.vast.ai/api/v0/instances/$CONTAINER_ID/"
 fi
+exit "$RC"

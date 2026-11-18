@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import re
 import shlex
@@ -93,6 +94,9 @@ def test_vast_create_body_hides_key(monkeypatch: pytest.MonkeyPatch) -> None:
     env = vast.job_env("p2_log", None, self_destroy=False)
     assert "VAST_API_KEY" not in env and env["TTALLOC_JOB"] == "p2_log"
     assert vast.job_env("p2_log", "minh", self_destroy=True)["VAST_API_KEY"] == "vk"
+    approval = vast.job_env("p1_all", "Dương Tuấn Minh", self_destroy=False)
+    assert "TTALLOC_APPROVED_BY" not in approval
+    assert base64.b64decode(approval["TTALLOC_APPROVED_BY_B64"], validate=True).decode() == "Dương Tuấn Minh"
     body = vast.create_body("p2_log", env, 60, None)
     assert body["image"].startswith("vllm/vllm-openai:") and body["disk"] == 60 and "price" not in body
     assert len(body["onstart"]) < 4000 and "hf_x" not in body["onstart"]
