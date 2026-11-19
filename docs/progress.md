@@ -1,5 +1,7 @@
 # Tiến độ
 
+**19/11/2026 — Chuẩn bị bổ sung seed cho kiểm định tương đương P1.** Lượt 400 câu val × 2 seed hoàn tất. CI90 của độ chính xác đạt biên ±3 điểm phần trăm. Độ dài chênh −4,83%, CI90 từ −9,80% đến −0,06% nên chưa đạt biên ±5%. Hậu kiểm 800 cặp cho thấy AMC23 đóng góp 60,8% chênh lệch token ròng. Đã xác minh checkpoint seed 0–1 và chạy 48 test CPU về baseline, dừng chuỗi và checkpoint. Job bổ sung chỉ sinh seed 2–3, xác thực khóa và config của hai lượt rồi tính lại cùng phép bootstrap trên 4 seed.
+
 **19/11/2026 — Bỏ timeout đồng bộ giữa các stage P1.** Lượt `p1-cloud-20261119-014745` đã lưu DEER MATH-500 và Full AIME 2024 lên Hugging Face. Driver dừng sau Full AIME vì lệnh đồng bộ vượt 180 giây. Theo yêu cầu, driver hiện chờ lệnh đồng bộ trả kết quả trước khi chạy stage kế tiếp, và vẫn dừng nếu lệnh trả lỗi. Guard phía GPU tiếp tục quản lý thời gian thuê, chi phí, tiến độ và lần đồng bộ cuối khi thu hồi máy.
 
 **19/11/2026 — Sửa khởi động P1 trên Vast.** Chế độ Entrypoint tránh bước thiết lập SSH bị kẹt ở máy trước. Instance `61302135` nhận GPU, import vLLM và xác minh đủ 5 split, sau đó dừng trước kiểm thử GPU vì không nhận tên người duyệt. Guard đã đồng bộ log và thu hồi máy. Bootstrap giải mã tên UTF-8 được truyền dưới dạng Base64 và trả đúng mã thoát của job. Smoke test mô phỏng giữ đúng tên và mã thoát 42. Ruff, mypy và 284 test CPU đạt. Giữ checkpoint Full theo ADR-022 và các giới hạn vận hành P1.

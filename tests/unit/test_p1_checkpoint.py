@@ -159,6 +159,29 @@ def test_stage_upload_waits_for_completion(
     assert calls[-1] == (["python", "ops/hf_sync.py", "push", "runs", "docs/test-log.md"], {})
 
 
+def test_equivalence_extension_combines_complete_disjoint_seed_pairs(tmp_path: Path) -> None:
+    merge = _module("merge_equivalence")
+    config = merge.config_hash(merge.load_config(merge.CONFIG))
+    first, second = tmp_path / "first", tmp_path / "second"
+    for run, seeds, segmented_length in ((first, (0, 1), 90), (second, (2, 3), 110)):
+        keys = [(f"math_train/{qid}", seed) for qid in range(400) for seed in seeds]
+        for filename, role, length in (
+            ("full_checkpoint.json", "equivalence:full", 100),
+            ("seg_checkpoint.json", "equivalence:seg", segmented_length),
+        ):
+            identity = {"config_hash": config, "role": role, "keys": [list(key) for key in keys]}
+            checkpoint = RowCheckpoint(run / filename, identity, keys)
+            checkpoint.add(
+                [{"qid": qid, "seed": seed, "think_tokens": length, "correct": True} for qid, seed in keys], 1,
+            )
+    report = merge.combined_report(first, second)
+    assert report["n_questions"] == 400 and report["seeds"] == [0, 1, 2, 3]
+    assert report["len_full"] == report["len_seg"] == 100
+    assert report["pass"]
+    with pytest.raises(ValueError, match="checkpoint identity"):
+        merge.combined_report(first, first)
+
+
 @pytest.mark.parametrize("trigger", ["budget", "missing_credit", "deadline", "done", "sync_failure"])
 def test_guard_supervisor_terminates_syncs_and_destroys_exact_instance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, trigger: str,
