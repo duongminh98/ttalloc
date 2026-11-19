@@ -1,5 +1,7 @@
 # Tiến độ
 
+**20/11/2026 — Hoàn tất pilot và kiểm tra log P1.** Đã đồng bộ 100 câu `val` × 2 seed, 5.328 điểm, `pass_rate = 100%`. Độ dài chuỗi trung bình 5.614,63 token. `token_ratio = 1,06374`. Stage pilot mất 3.908 giây, tương đương khoảng 306 token sinh/giây tính trên toàn stage. Instance `61492898` ở Đài Loan tải được trọng số sau khi tắt Xet. Sau khi lưu kết quả kiểm tra log, Hugging Face giới hạn tạo commit với HTTP 429. Guard thu hồi máy và Vast xác nhận còn 0 instance, đã chi 4,235822 USD cộng dồn tại thời điểm kiểm tra. Phiên `p1-cloud-20261120-003133` có thể tiếp tục từ `answer-mode` và `probe-noise` bằng trạng thái đã đồng bộ.
+
 **20/11/2026 — Sửa bước cài đặt của `p1_finish`.** Instance `61487729` dừng trước pilot do pip không tìm được `hypothesis` trong chỉ mục của máy. Guard đã thu hồi máy. Job này chỉ cần phụ thuộc chạy ứng dụng. Bootstrap kiểm tra mã thoát cài đặt và lưu log nếu lỗi.
 
 **20/11/2026 — Duyệt biên chạy tiếp P1.** Áp dụng ±3,1 điểm phần trăm cho quyết định chạy tiếp từ kết quả equivalence 4 seed. Báo cáo theo biên định trước ±3 điểm phần trăm vẫn ghi chưa đạt. `p1_finish` kiểm tra và ghi quyết định theo ADR-023, sau đó chạy 200 chuỗi pilot, kiểm tra log và hai study.
