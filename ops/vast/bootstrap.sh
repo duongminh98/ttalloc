@@ -35,13 +35,15 @@ put_log() { hf put-log "$JOB" "$LOG" >/dev/null 2>&1 || true; }
 install() {
   # Cài ttalloc và các phụ thuộc còn thiếu; không đụng vào torch và vllm có sẵn trong image.
   find ops -name '*.sh' -exec sed -i 's/\r$//' {} +
-  python3 -m pip install -q -e . pytest hypothesis 2>&1 | tail -n 5
+  local test_deps=(pytest hypothesis)
+  if [ "$JOB" = p1_finish ]; then test_deps=(); fi
+  python3 -m pip install -q -e . "${test_deps[@]}"
 }
 
 python3 -m pip install -q "huggingface_hub>=0.25" || exit 1
 status starting "cài gói"
 nvidia-smi || true
-install
+install || { status failed "cài ttalloc lỗi"; put_log; exit 1; }
 python3 -c "import vllm, torch; print('vllm', vllm.__version__, 'torch', torch.__version__, torch.cuda.get_device_name(0))" \
   || { status failed "import vllm lỗi"; put_log; exit 1; }
 

@@ -1,5 +1,7 @@
 # Tiến độ
 
+**20/11/2026 — Sửa bước cài đặt của `p1_finish`.** Instance `61487729` dừng trước pilot do pip không tìm được `hypothesis` trong chỉ mục của máy. Guard đã thu hồi máy. Job này chỉ cần phụ thuộc chạy ứng dụng. Bootstrap kiểm tra mã thoát cài đặt và lưu log nếu lỗi.
+
 **20/11/2026 — Duyệt biên chạy tiếp P1.** Áp dụng ±3,1 điểm phần trăm cho quyết định chạy tiếp từ kết quả equivalence 4 seed. Báo cáo theo biên định trước ±3 điểm phần trăm vẫn ghi chưa đạt. `p1_finish` kiểm tra và ghi quyết định theo ADR-023, sau đó chạy 200 chuỗi pilot, kiểm tra log và hai study.
 
 **19/11/2026 — Chẩn đoán định dạng đáp án của equivalence.** Đã chạy đủ 48 cặp câu–seed trên val, gồm 6 câu MATH lệch ở cả 4 seed và 6 câu đối chứng ghép theo độ dài Full. Mỗi cặp so hai đáp án trên cùng tiền tố segmented mới sinh. `short` đúng 5/24 ở nhóm lệch và 24/24 ở nhóm đối chứng. Trong 19 mẫu sai ở nhóm lệch, 11 có đáp án trích được nhưng sai và 8 có khung chưa đóng. Nội dung trong khung chưa đóng khớp đáp án ở 2/8 mẫu khi chấm thăm dò riêng. Tiếp tục tự nhiên đúng 0/24 và 4/24 tương ứng, với 44/48 mẫu chạm giới hạn 256 token. Nhãn `short` tái hiện ở 19/24 mẫu nhóm lệch và toàn bộ 24 mẫu đối chứng. Đây là phép chẩn đoán định dạng trên nhóm đã chọn sau kiểm định. Equivalence 4 seed chưa đạt. Artifact tại `runs/20261119-161719_equivalence-diagnostic_3c9fbf102c27/`. Guard thu hồi instance `61476502`. Vast báo 0 instance và chi phí cộng dồn 3,790851 USD ở thời điểm kiểm tra.
