@@ -1,5 +1,7 @@
 # Tiến độ
 
+**20/11/2026 — Hoàn tất các lượt chạy P1.** Phiên `p1-cloud-20261120-003133` dùng lại 200 log pilot hợp lệ và hoàn tất cả hai study trên 100 câu `val`, seed 0. ADR-014 ghi kết quả `answer-mode` trên 2.612 bản ghi và giải thích cách áp dụng quy tắc chọn dạng trả lời. Trong `probe-noise`, hai lời nhắc cho đáp án khác nhau ở 36,94% trong 2.182 điểm. Tỉ lệ giảm từ 51,96% trong 20% đầu chuỗi xuống 17,90% trong 20% cuối. Tương quan độ tự tin là 0,843. Đã tính lại các tỉ lệ từ CSV đồng bộ. Biên nhận `runs/guard-61504389.json` ghi `done` lúc 04:00:17 giờ Việt Nam. Vast xác nhận 0 instance và đã chi 4,523524 USD cộng dồn tại thời điểm kiểm tra. Kết quả equivalence theo biên định trước và ngoại lệ chạy tiếp đã ghi ở ADR-023. P2 chờ xác nhận kết thúc P1 và duyệt ghi lớn.
+
 **20/11/2026 — Hoàn tất pilot và kiểm tra log P1.** Đã đồng bộ 100 câu `val` × 2 seed, 5.328 điểm, `pass_rate = 100%`. Độ dài chuỗi trung bình 5.614,63 token. `token_ratio = 1,06374`. Stage pilot mất 3.908 giây, tương đương khoảng 306 token sinh/giây tính trên toàn stage. Instance `61492898` ở Đài Loan tải được trọng số sau khi tắt Xet. Sau khi lưu kết quả kiểm tra log, Hugging Face giới hạn tạo commit với HTTP 429. Guard thu hồi máy và Vast xác nhận còn 0 instance, đã chi 4,235822 USD cộng dồn tại thời điểm kiểm tra. Phiên `p1-cloud-20261120-003133` có thể tiếp tục từ `answer-mode` và `probe-noise` bằng trạng thái đã đồng bộ.
 
 **20/11/2026 — Sửa bước cài đặt của `p1_finish`.** Instance `61487729` dừng trước pilot do pip không tìm được `hypothesis` trong chỉ mục của máy. Guard đã thu hồi máy. Job này chỉ cần phụ thuộc chạy ứng dụng. Bootstrap kiểm tra mã thoát cài đặt và lưu log nếu lỗi.
@@ -71,11 +73,11 @@ Audit và báo cáo đã được kiểm tra tính toàn vẹn, lưu local/HF; b
 | P0 (phase) | hoàn tất theo ngoại lệ | | Người dùng chấp nhận phần đã xong và miễn P0a ngày 17/11/2026; các bước chạy 1–3 đã ghi nhận xong |
 | P1.T1–T3 | mã xong | | Generator, ScriptedGenerator, cắt đoạn có peek (ADR-010) |
 | P1.T4 | mã xong; GPU bf16 đạt | | VllmGenerator. 04/11/2026: Kaggle `p1_gpu_tests` lần 6 trên T4 (float16) đạt hết: GPU 7/7, CPU 255 (1 bỏ qua vì không có git). Qua 6 lần đã sửa: tokenizer R1 (ADR-013), đọc tỉ lệ trúng prefix cache (vLLM ghi 97,5%), test cần git, trình theo dõi. 05/11/2026 lần 7 (sau các sửa của tập dượt): GPU 7/7, CPU 264 đạt. 18/11/2026: Vast RTX 3090 `gpu_check` bf16 đạt 7/7; throughput đủ 4 cỡ lô, đã thu hồi máy |
-| P1.T5 | mã xong; chạy một phần | | Full MATH-500 18/11 đạt 441/500 (88,2%), lệch +2,6 điểm so với mốc 85,6%; pipeline dừng theo PLAN. AI audit 100/100 đồng thuận. DEER/AIME/throughput của đợt P1 chưa chạy |
-| P1.T6 | mã xong | | `equivalence` |
-| P1.T7–T11 | mã xong | | LiveSource, logger chạy tiếp được, study answer-mode/probe-noise, validate-logs |
-| P1a, P1b (review) | được miễn | | Người dùng yêu cầu ngày 17/11/2026; ADR-018; không thay thế các lần chạy thật còn thiếu |
-| P1, bước chạy 1–5 | một phần; dừng baseline | | Quyền test_main/AI audit đã có. Full MATH-500 đủ dữ liệu nhưng ngoài biên tái lập; audit AI đạt trên 100 mẫu. Máy đã xóa; chưa chạy DEER/AIME/equivalence/pilot/study, chưa hoàn tất P1 |
+| P1.T5 | chạy xong theo ADR-022 | | Full/DEER trên MATH-500 và AIME, throughput 4 cỡ lô. Audit AI đạt 100/100 mẫu. Full MATH-500 chấp nhận theo ngoại lệ tái lập có giải trình. |
+| P1.T6 | chạy xong, tiếp tục theo ADR-023 | | CI90 độ chính xác từ −3,0625 đến +0,1875 điểm phần trăm trên 400 câu `val` × 4 seed. Biên định trước ±3 điểm chưa đạt. |
+| P1.T7–T11 | chạy xong | | 200 chuỗi pilot đều hợp lệ. Hai study đã đồng bộ và đối chiếu với CSV. Dạng `short` đã được duyệt tại ADR-014. |
+| P1a, P1b (review) | được miễn | | Người dùng yêu cầu ngày 17/11/2026 theo ADR-018. |
+| P1, bước chạy 1–5 | chạy xong, chờ xác nhận phase | | Kết quả, ngoại lệ và biên nhận GPU ở các mục tiến độ trên. |
 | P2.T1–T6 | mã xong | | Sự kiện, dãy chuẩn, đặc trưng, bộ ước lượng, rho, đánh giá |
 | P2.T7–T8 | mã xong | | Quỹ, bộ bảo vệ (ADR-012), Runner; property test I1–I3 |
 | P2.T9–T11 | mã xong | | LoggedSource, bảng tính sẵn, RhoProvider, B2/M2/M3 |

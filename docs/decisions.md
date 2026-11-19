@@ -133,6 +133,8 @@ Mỗi chỗ lệch đặc tả, mâu thuẫn hoặc chỗ chưa rõ được ghi
 - Hệ quả:
   - Thời gian ghi log giảm khoảng 50%. `c_ans_max` nhỏ hơn, nên phần dự trữ của quỹ và nhu cầu KV của mỗi chuỗi cũng nhỏ hơn.
   - Nhãn `y` có nghĩa là "nếu bắt trả lời ngay thì có đúng không". Model không được viết thêm bước nào để chốt đáp án; phần phương pháp phải nói rõ điều này.
+
+- Đối chiếu ngày 20/11/2026 trên 100 câu `val`, seed 0, với chuỗi dài thật (`runs/20261119-194301_study-answer-mode_3c9fbf102c27/`). Ở 2.512 điểm trong chuỗi, `full` và `short` không trích được đáp án lần lượt ở 97,77% và 1,07% số điểm. Ở 100 điểm kết thúc, hai tỉ lệ là 97% và 2%. Tỉ lệ cùng kết quả chấm lần lượt là 65,13% ở điểm trong chuỗi và 18% ở điểm kết thúc. Luật đề xuất tự động mốc 98% đưa ra `full`, trong khi phần lớn đầu ra `full` không có đáp án trích được với giới hạn của study. Số liệu củng cố cơ sở đã duyệt để dùng `short` theo ADR này.
   - Với model thứ hai ở P5, vẫn áp luật ở P5 bước 3, nhưng so với dạng `short` của model chính.
 
 ## ADR-015: Cỡ `train` theo learning curve
