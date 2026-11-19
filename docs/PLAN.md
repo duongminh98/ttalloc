@@ -844,6 +844,7 @@ Công việc chia thành bảy phase, P0 đến P6, cùng cách chia với [kế
 
 **P1.T6. Kiểm định tương đương.**
 - Test (`slow`, `gpu`): 400 câu của `val` × 2 seed (không dùng tập kiểm tra), sinh liền mạch (hàm của P1.T5) và sinh theo đoạn có nhánh phụ. Đạt khi khoảng tin cậy bootstrap 90% của chênh lệch nằm trọn trong biên tương đương: độ chính xác ±3 điểm phần trăm, độ dài trung bình ±5%. Nếu khoảng quá rộng để kết luận, tăng lên 4 seed. Kết quả ghi vào `runs/`.
+- Ngoại lệ chạy tiếp được duyệt ở [ADR-023](decisions.md#adr-023-nới-biên-độ-chính-xác-cho-quyết-định-chạy-tiếp-p1): dùng biên độ chính xác ±3,1 điểm phần trăm cho riêng quyết định chạy tiếp P1 từ lượt 4 seed đã xác minh. Khi báo cáo, giữ kết quả theo biên định trước ±3 điểm phần trăm và ghi thời điểm chọn biên mới.
 
 **P1.T7. Lưu trữ.**
 - Tệp: `logging/store.py`. Ghi theo lô vào tệp tạm rồi đổi tên (ghi nguyên tử). Có tệp kê khai các khóa `(qid, seed)` đã hoàn tất; hàm `completed_keys()` dùng để chạy tiếp sau khi bị ngắt.

@@ -92,6 +92,8 @@ Viết tắt: `E=configs/experiments/qwen3.yaml` (config chung của Qwen3-1.7B)
 | 4 | công việc `p1_pilot` | Vast, theo yêu cầu; study dự trù ≈ 1–2 giờ, ghi thử nằm trong khối lượng P2 | Ghi thử val 100 × 2 seed bằng `short` đã chọn (ADR-014), chạy hai study trên chuỗi dài thật. Tái sử dụng cùng `log_hash` ở P2; không xóa log short hợp lệ. Nếu cần đổi dạng trả lời phải duyệt và dự toán lại |
 | 5 | Đọc `data/logs/qwen3_1_7b/val/validate.json` và log thời gian | — | `pass_rate`, `token_ratio`, độ dài trung bình và tốc độ hiệu dụng. **[dừng]** cập nhật dự toán từ pilot trước khi duyệt ghi lớn; không dùng throughput ngắn làm bảo đảm cho chuỗi dài |
 
+Theo [ADR-023](../docs/decisions.md#adr-023-nới-biên-độ-chính-xác-cho-quyết-định-chạy-tiếp-p1), dùng job `p1_finish` để tiếp tục từ kết quả 4 seed đã xác minh. Job kiểm tra các checkpoint trước khi chạy pilot, `validate-logs` và hai study. Khi tiếp tục một job bị ngắt, dùng lại `TTALLOC_P1_SESSION` để giữ các stage đã đồng bộ.
+
 ## P2. Thăm dò
 
 | Bước | Lệnh | Ở đâu | Ghi chú |
