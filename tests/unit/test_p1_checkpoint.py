@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -132,6 +133,30 @@ def test_full_handoff_pins_run_checksum_config_and_approval(tmp_path: Path, monk
     monkeypatch.setattr(runner, "FULL_SHA256", json.loads(cp.path.read_text())["sha256"])
     with pytest.raises(ValueError, match="original config"):
         runner.verify_full_handoff(run, runner.APPROVED_BY)
+
+
+@pytest.mark.parametrize(("upload_returncode", "expected"), [(0, 0), (1, 2)])
+def test_stage_upload_waits_for_completion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, upload_returncode: int, expected: int,
+) -> None:
+    runner = _module("p1_run")
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    monkeypatch.setattr(runner, "sys", SimpleNamespace(argv=["p1_run.py"], executable="python"))
+    monkeypatch.setattr(runner, "verify_full_handoff", lambda *_: {})
+    monkeypatch.setattr(runner, "stages", lambda _: [("throughput", ["baseline", "throughput"])])
+    monkeypatch.setenv("TTALLOC_APPROVED_BY", runner.APPROVED_BY)
+    monkeypatch.setenv("TTALLOC_P1_SESSION", "upload-test")
+    calls = []
+
+    def run(command: list[str], **kwargs: Any) -> SimpleNamespace:
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=upload_returncode if command[2] == "push" else 0)
+
+    monkeypatch.setattr(runner, "subprocess", SimpleNamespace(
+        PIPE=-1, STDOUT=-2, run=run, Popen=lambda *_, **__: SimpleNamespace(stdout=[], wait=lambda: 0),
+    ))
+    assert runner.main() == expected
+    assert calls[-1] == (["python", "ops/hf_sync.py", "push", "runs", "docs/test-log.md"], {})
 
 
 @pytest.mark.parametrize("trigger", ["budget", "missing_credit", "deadline", "done", "sync_failure"])

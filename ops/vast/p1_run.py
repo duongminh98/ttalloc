@@ -172,13 +172,7 @@ def main() -> int:
         sync_paths = ["runs", "docs/test-log.md"]
         if name in ("pilot", "validate"):
             sync_paths.append(PILOT_LOGS.as_posix())
-        try:
-            synced = subprocess.run(
-                [sys.executable, "ops/hf_sync.py", "push", *sync_paths], timeout=180
-            )
-        except subprocess.TimeoutExpired:
-            print("P1_STOP synchronization timed out", flush=True)
-            return 2
+        synced = subprocess.run([sys.executable, "ops/hf_sync.py", "push", *sync_paths])
         if synced.returncode:
             print("P1_STOP synchronization failed", flush=True)
             return 2
