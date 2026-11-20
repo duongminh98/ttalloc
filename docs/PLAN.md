@@ -46,6 +46,8 @@ Agent dừng, báo cáo và chờ xác nhận trước khi:
 
 ## 1. Bối cảnh tóm tắt
 
+**Phạm vi thực hiện tối thiểu, cập nhật 17/11/2026 (ADR-019):** một Qwen3-1.7B; train sử dụng 500 câu × 4 seed trong pool 1.500 ID đã khóa, val 400 × 8 và test_main 560 × 8. Không thay split, không giảm seed hoặc giới hạn chuỗi. Kiểm tra một RTX 3090 trước; không thuê A100 chỉ để so tốc độ trong gói tối thiểu. Đích ngân sách khoảng 10 USD, chuẩn bị 15 USD (quy đổi lập kế hoạch khoảng 260.000 và 390.000–400.000 đồng), chưa bao gồm mở rộng. Đây là dự toán theo giả định, cần đo lại pilot chuỗi dài và kiểm giá offer trước khi ghi dữ liệu lớn; không phải quyền thuê máy hoặc bảo đảm trọn gói. Nếu learning curve yêu cầu tăng train hoặc dự kiến vượt ngân sách, dừng và duyệt dự toán/phạm vi mới trước khi chi thêm. Chi tiết tính tiền và thứ tự thực thi ở mục 3.3 của `docs/Ke-hoach-thuc-hien-de-tai.md`; lệnh ở `ops/RUNBOOK.md`. Vẫn thực hiện E1–E4 trên CPU và E5 tối thiểu 6 lần chạy thật, giữ các cổng và điều kiện kiểm tra.
+
 **Bài toán.** Cho $N$ câu hỏi, một mô hình suy luận lớn (LRM) cố định và tổng ngân sách $B$ token. Trong lúc LRM suy luận, tại các điểm quyết định, một chính sách quyết định câu nào tiếp tục suy luận, câu nào dừng và trả lời. Mục tiêu là tối đa số câu trả lời đúng, với $\sum_i T_i \le B$ ở **mọi** lần chạy ([mục 2 của báo cáo phương pháp chi tiết](Bao-cao-Phuong-phap-chi-tiet.md#L15)).
 
 **Phương pháp.**
@@ -319,10 +321,10 @@ class Question:
 
 | Tên tập | Nguồn | Số câu | Seed | Vai trò |
 |---|---|---|---|---|
-| `train` | MATH tập train, đủ 5 mức (`EleutherAI/hendrycks_math`): 900 câu; DeepScaleR (`agentica-org/DeepScaleR-Preview-Dataset`): 600 câu | 1.500 | 4 | Huấn luyện bộ ước lượng |
+| `train` | Pool đã khóa: MATH train 900 câu; DeepScaleR 600 câu | 500 sử dụng; pool 1.500 | 4 | Huấn luyện bộ ước lượng; tăng theo learning curve và dự toán được duyệt (ADR-015, ADR-019) |
 | `val` | AMC 2023 (`math-ai/amc23`): 40 câu; MATH tập train, tách riêng khỏi `train`: 360 câu | 400 | 8 | Chỉnh tham số, cổng G1 |
 | `test_main` | MATH-500 (`HuggingFaceH4/MATH-500`); AIME 2024 (`HuggingFaceH4/aime_2024`); AIME 2025 (`MathArena/aime_2025`) | 560 | 8 | Kết quả chính |
-| `test_clean` | AIME 2026 và HMMT 02/2026 của MathArena (kiểm tra tên dataset trước khi tải) | 60 | 8 | Tập ra đời sau các model |
+| `test_clean` | AIME 2026 và HMMT 02/2026 của MathArena | 63 | 8 | Phần mở rộng; 30 + 33 câu theo ADR-004 |
 | `test_ood` | GPQA-Diamond (`Idavidrein/gpqa`, cấu hình `gpqa_diamond`) | 198 | 8 | Ngoài miền |
 
 - `train` và `val` được lấy mẫu phân tầng theo độ khó, với seed cố định trong `configs/splits.yaml`.
@@ -842,6 +844,7 @@ Công việc chia thành bảy phase, P0 đến P6, cùng cách chia với [kế
 
 **P1.T6. Kiểm định tương đương.**
 - Test (`slow`, `gpu`): 400 câu của `val` × 2 seed (không dùng tập kiểm tra), sinh liền mạch (hàm của P1.T5) và sinh theo đoạn có nhánh phụ. Đạt khi khoảng tin cậy bootstrap 90% của chênh lệch nằm trọn trong biên tương đương: độ chính xác ±3 điểm phần trăm, độ dài trung bình ±5%. Nếu khoảng quá rộng để kết luận, tăng lên 4 seed. Kết quả ghi vào `runs/`.
+- Ngoại lệ chạy tiếp được duyệt ở [ADR-023](decisions.md#adr-023-nới-biên-độ-chính-xác-cho-quyết-định-chạy-tiếp-p1): dùng biên độ chính xác ±3,1 điểm phần trăm cho riêng quyết định chạy tiếp P1 từ lượt 4 seed đã xác minh. Khi báo cáo, giữ kết quả theo biên định trước ±3 điểm phần trăm và ghi thời điểm chọn biên mới.
 
 **P1.T7. Lưu trữ.**
 - Tệp: `logging/store.py`. Ghi theo lô vào tệp tạm rồi đổi tên (ghi nguyên tử). Có tệp kê khai các khóa `(qid, seed)` đã hoàn tất; hàm `completed_keys()` dùng để chạy tiếp sau khi bị ngắt.
@@ -872,6 +875,8 @@ Công việc chia thành bảy phase, P0 đến P6, cùng cách chia với [kế
 **Bước chạy:**
 
 1. Sau P1a: **[dừng]** xin duyệt dùng `test_main`, rồi chạy `baseline full` và `baseline deer` với `--profile deer_paper` cho Qwen3-1.7B: MATH-500 một lượt, AIME 2024 bốn lượt (cả hai thuộc `test_main`). So với dòng Qwen3-1.7B ở bảng 2 của bài DEER. **[dừng]** nếu trên MATH-500 lệch quá 2 điểm phần trăm; AIME 2024 chỉ báo cáo.
+> **Ngo?i l? ???c duy?t ng?y 18/11/2026 (ADR-022):** ch?p nh?n Full MATH-500 ?? ch?y theo ngo?i l? t?i l?p c? gi?i tr?nh; gi? 88,2% theo `grade` v? 87,0% theo m? DEER tr?n v?n b?n ?? l?u c?ng gi?i h?n thi?u raw response. Kh?ng sinh l?i Full, kh?ng s?a ng??ng chung ho?c coi c?ng s? h?c ?? ??t. Ch? ti?p t?c sau khi kho?n thu? ti?p theo ???c duy?t; ?i?u ki?n d?ng c?a DEER/equivalence v? c?c b??c kh?c gi? nguy?n.
+
 2. Sau P1a: `baseline throughput` với Qwen3-1.7B, trên GPU sẽ dùng để ghi dữ liệu.
 3. Sau bước 1: `audit-grading --n 100` trên đầu ra của bước 1 → **[dừng]** con người chấm tay; đạt khi khớp ít nhất 99%.
 4. Sau P1b: ghi thử 100 câu `val` × 2 seed; `study answer-mode`, `study probe-noise` → **[dừng]** chọn dạng câu trả lời.
@@ -989,7 +994,7 @@ Công việc chia thành bảy phase, P0 đến P6, cùng cách chia với [kế
 **Bước chạy:**
 
 1. Khi bắt đầu phase: ghi dữ liệu thăm dò với Qwen3-1.7B, gồm `train` 500 câu × 4 seed và `val` × 8 seed; `validate-logs`. Bước này chạy nền trong lúc viết mã P2.T1–T6.
-2. Sau P2a và bước 1: `estimator train`, `estimator eval` (E1 trên `val`); `estimator learning-curve --sizes 250,500` để chọn cỡ `train` cho P3 (ADR-015).
+2. Sau P2a và bước 1: `estimator train`, `estimator eval` (E1 trên `val`); `estimator learning-curve --sizes 250,500` để chọn cỡ `train` cho P3 (ADR-015). Gói tối thiểu dự toán 500 câu; nếu đề xuất tăng, dự toán lại và xin duyệt trước khi ghi thêm, không tự bỏ qua khuyến nghị (ADR-019).
 3. Sau P2c và bước 2: `table build` cho `val`; `sim run --exp g1` với B2, M2, M3 trên toàn bộ `val` và trên các lô `balanced`, `easy`, `hard`, `u` dựng từ phần MATH của `val`; `study curves --split val`.
 4. Sau bước 3: `gate g1` → **[dừng]**.
 
@@ -1030,7 +1035,7 @@ Công việc chia thành bảy phase, P0 đến P6, cùng cách chia với [kế
 
 **Bước chạy:**
 
-1. Khi bắt đầu phase: **[dừng]** duyệt GPU, rồi ghi nốt dữ liệu của Qwen3-1.7B: `train` tới số câu do `estimator learning-curve` đề xuất cuối P2 (500, 1.000 hoặc 1.500 câu × 4 seed, ADR-015; logger bỏ qua các khóa đã ghi ở P2) và `test_main` × 8 seed; `validate-logs`. Bước này chỉ sinh và ghi, không đánh giá chính sách, và chạy nền trong lúc viết mã P3.T3–T6.
+1. Khi bắt đầu phase: **[dừng]** duyệt GPU và chi phí còn lại. Gói tối thiểu dùng `p3_log` với `TTALLOC_TRAIN_LIMIT=500`: tái sử dụng train đã ghi ở P2, chỉ ghi thêm `test_main` × 8 seed; `validate-logs`. Nếu learning curve yêu cầu tăng tới 1.000 hoặc 1.500 câu × 4 seed, chỉ thực hiện sau khi dự toán/phạm vi mới được duyệt (ADR-015, ADR-019). Bước này chỉ sinh và ghi, không đánh giá chính sách.
 2. Sau P3a và bước 1: học lại bộ ước lượng trên `train` đầy đủ với `lightgbm` và với `logreg`; chọn mô hình có log-loss trung bình theo các $h$ thấp hơn trên `val`; ghi ADR.
 3. Sau bước 2: `table build` cho `val`; `tune` trên `val`; `lock` → **[dừng]** duyệt cấu hình khóa.
 4. Sau bước 3: `eval-test` cho E1 (trên `test_main`), E2, E3 và E4; `report`; `gate g2` → **[dừng]**.

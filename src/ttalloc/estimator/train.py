@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import pickle
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -24,7 +25,7 @@ ID_COLS = ("qid", "seed", "point_idx")
 
 def import_lightgbm() -> Any:
     """ADR-007: trên Windows, `lib_lightgbm.dll` cần `vcomp140.dll`; dùng bản có sẵn trong `sklearn/.libs`."""
-    if os.name == "nt":
+    if sys.platform == "win32":
         import sklearn
 
         libs = Path(sklearn.__file__).parent / ".libs"

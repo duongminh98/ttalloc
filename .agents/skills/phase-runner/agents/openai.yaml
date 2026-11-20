@@ -1,0 +1,4 @@
+interface:
+  display_name: "ttalloc · Phase runner"
+  short_description: "Xác định và chạy bước thực nghiệm ttalloc kế tiếp"
+  default_prompt: "Dùng $phase-runner để xác định và thực hiện bước kế tiếp của ttalloc theo tiến độ, PLAN và các quyền đã được duyệt."

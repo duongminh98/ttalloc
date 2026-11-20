@@ -94,9 +94,12 @@ def generate_full(
     sampling: Sampling,
     chunk: int = 512,
     on_chunk: Callable[[list[dict[str, Any]]], None] | None = None,
+    initial_rows: list[dict[str, Any]] | None = None,
+    save_raw: bool = False,
 ) -> list[dict[str, Any]]:
-    jobs = [(q, s) for s in seeds for q in questions]
-    rows: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = list(initial_rows or [])
+    done = {(r["qid"], r["seed"]) for r in rows}
+    jobs = [(q, s) for s in seeds for q in questions if (q.qid, s) not in done]
     for i in range(0, len(jobs), chunk):
         part = jobs[i : i + chunk]
         reqs = [
@@ -135,6 +138,8 @@ def generate_full(
                     "chunk_seconds": dt_s,
                 }
             )
+            if save_raw:
+                new[-1].update(raw_text=codec.decode(ids), raw_token_ids=ids, raw_token_source="engine")
         rows += new
         if on_chunk:
             on_chunk(new)
@@ -172,7 +177,9 @@ def write_results(run_dir: Path, rows: list[dict[str, Any]], summary: dict[str, 
         {k: r[k] for k in ANSWERS_SCHEMA.names} | {"seed": int(r["seed"]), "correct": bool(r["correct"])} for r in rows
     ]
     atomic_write_table(to_table(ans, ANSWERS_SCHEMA), run_dir / "answers.parquet")
-    df = pd.DataFrame(rows).drop(columns=["problem", "answer_text"])
+    df = pd.DataFrame(rows).drop(
+        columns=["problem", "answer_text", "raw_text", "raw_token_ids", "raw_token_source"], errors="ignore"
+    )
     df.to_parquet(run_dir / "per_question.parquet", index=False)
     (run_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False, default=_json), encoding="utf-8"

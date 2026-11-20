@@ -1,0 +1,6 @@
+# Operational batching only; sampling, prompts, splits and token limits remain inherited.
+extends: qwen3.yaml
+name: p1_safe_qwen3
+baseline: {chunk: 32}
+online: {max_num_seqs: 32}
+log: {window: 32, flush_every: 8}

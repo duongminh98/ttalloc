@@ -103,6 +103,21 @@ def _json_default(o: Any) -> Any:
     raise TypeError(type(o))
 
 
+def _row_checkpoint(
+    d: Path, cfg: Any, qs: list[Any], seeds: list[int], role: str, resume: Path | None,
+    filename: str = "checkpoint.json",
+) -> Any:
+    from ttalloc.baseline.checkpoint import RowCheckpoint
+    from ttalloc.config import config_hash
+
+    keys = [(q.qid, s) for s in seeds for q in qs]
+    identity = {"config_hash": config_hash(cfg), "role": role, "keys": [list(k) for k in keys]}
+    prior = resume / filename if resume is not None else None
+    if prior is not None and filename == "seg_checkpoint.json" and not prior.exists():
+        prior = None  # interrupted before the first segmented chunk; full checkpoint is validated separately
+    return RowCheckpoint(d / filename, identity, keys, prior)
+
+
 def _questions(split: str, datasets: list[str] | None = None, limit: int | None = None) -> list[Any]:
     from ttalloc.context import filter_datasets, load_split_questions
 
@@ -288,6 +303,8 @@ def baseline_full(
     approved_by: Approved = None,
     exp: Exp = None,
     sets: Sets = None,
+    resume_from: Annotated[Path | None, typer.Option("--resume-from")] = None,
+    save_raw: Annotated[bool, typer.Option(help="Lưu văn bản và token đầu ra trong checkpoint")] = False,
 ) -> None:
     """Sinh liền mạch, không gợi, không dừng sớm (P1.T5)."""
     from ttalloc.baseline.full import generate_full, profile_sampling, require_approval, summarize, write_results
@@ -301,10 +318,20 @@ def baseline_full(
     sampling = profile_sampling(profile, ctx.model_cfg, cfg)  # type: ignore[arg-type]
     pids = prompt_ids_for(qs, ctx)
     d = _run_dir(f"baseline-full-{split}-{profile}", cfg)
+    cp = _row_checkpoint(d, cfg, qs, _seeds(seeds), f"full:{split}:{profile}", resume_from)
     gen = _vllm(ctx, max(len(v) for v in pids.values()) + sampling.max_tokens + 16)
     import time
 
     t0 = time.time()
+    last = t0
+
+    def checkpoint(new: list[dict[str, Any]]) -> None:
+        nonlocal last
+        now = time.time()
+        cp.add(new, now - last)
+        last = now
+        _echo(f"checkpoint {len(cp.rows)} chuỗi: {d}")
+
     rows = generate_full(
         gen,
         ctx.codec,
@@ -313,9 +340,12 @@ def baseline_full(
         _seeds(seeds),
         sampling,
         cfg.baseline.chunk,
-        on_chunk=lambda new: _echo(f"xong {len(new)} chuỗi"),
+        on_chunk=checkpoint,
+        initial_rows=cp.rows,
+        save_raw=save_raw,
     )
-    s = summarize(rows, time.time() - t0) | {"profile": profile, "split": split, "datasets": datasets}
+    cp.complete()
+    s = summarize(rows, cp.seconds) | {"profile": profile, "split": split, "datasets": datasets}
     write_results(d, rows, s)
     _echo(json.dumps({k: s[k] for k in ("n", "accuracy", "mean_tokens", "by_dataset")}, indent=2, ensure_ascii=False))
 
@@ -331,6 +361,8 @@ def baseline_deer(
     approved_by: Approved = None,
     exp: Exp = None,
     sets: Sets = None,
+    resume_from: Annotated[Path | None, typer.Option("--resume-from")] = None,
+    save_raw: Annotated[bool, typer.Option(help="Lưu văn bản DEER và token tái mã hóa trong checkpoint")] = False,
 ) -> None:
     """Chạy repo DEER chính thức (third_party/DEER ở commit cố định) và chấm lại (P1.T5, P4.T5)."""
     import time
@@ -348,8 +380,18 @@ def baseline_deer(
     ctx = model_context(cfg)
     sampling = profile_sampling(profile, ctx.model_cfg, cfg)  # type: ignore[arg-type]
     d = _run_dir(f"baseline-deer-{split}-{profile}", cfg)
+    cp = _row_checkpoint(d, cfg, qs, _seeds(seeds), f"deer:{split}:{profile}", resume_from)
     path = snapshot_download(ctx.model_cfg.hf_id, revision=ctx.model_cfg.revision)
     t0 = time.time()
+    last = t0
+
+    def checkpoint(new: list[dict[str, Any]]) -> None:
+        nonlocal last
+        now = time.time()
+        cp.add(new, now - last)
+        last = now
+        _echo(f"checkpoint {len(cp.rows)} chuỗi: {d}")
+
     rows, timing = run_deer(
         cfg,
         ctx.model_cfg,
@@ -361,8 +403,12 @@ def baseline_deer(
         sampling.top_p,
         sampling.max_tokens,
         path,
+        on_chunk=checkpoint,
+        initial_rows=cp.rows,
+        save_raw=save_raw,
     )
-    s = summarize(rows, time.time() - t0) | {"profile": profile, "timing": timing, "split": split}
+    cp.complete()
+    s = summarize(rows, cp.seconds) | {"profile": profile, "timing": timing, "split": split}
     write_results(d, rows, s)
     _echo(json.dumps({k: s[k] for k in ("n", "accuracy", "mean_tokens", "by_dataset")}, indent=2, ensure_ascii=False))
 
@@ -398,6 +444,7 @@ def equivalence(
     seeds: Seeds = "0-1",
     exp: Exp = None,
     sets: Sets = None,
+    resume_from: Annotated[Path | None, typer.Option("--resume-from")] = None,
 ) -> None:
     """Kiểm định tương đương giữa sinh liền mạch và sinh theo đoạn có nhánh phụ, trên val (P1.T6)."""
     from ttalloc.baseline.equivalence import run_equivalence
@@ -410,6 +457,8 @@ def equivalence(
     ctx = model_context(cfg)
     pids = prompt_ids_for(qs, ctx)
     d = _run_dir("equivalence", cfg)
+    full_cp = _row_checkpoint(d, cfg, qs, _seeds(seeds), "equivalence:full", resume_from, "full_checkpoint.json")
+    seg_cp = _row_checkpoint(d, cfg, qs, _seeds(seeds), "equivalence:seg", resume_from, "seg_checkpoint.json")
     gen = _vllm(ctx, max(len(v) for v in pids.values()) + cfg.log.l_log + _bounds_extra(ctx))
     src = _live_source(ctx, gen, qs, pids, cfg.answer.mode or "full")
     full, seg, rep = run_equivalence(
@@ -420,6 +469,8 @@ def equivalence(
         profile_sampling("log", ctx.model_cfg, cfg),
         cfg,
         np.random.default_rng(cfg.sim.seed),
+        full_checkpoint=full_cp,
+        seg_checkpoint=seg_cp,
     )
     full.drop(columns=["problem", "answer_text"]).to_parquet(d / "full.parquet", index=False)
     seg.to_parquet(d / "segmented.parquet", index=False)

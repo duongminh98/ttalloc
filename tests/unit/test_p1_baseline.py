@@ -27,12 +27,16 @@ def _qs() -> list[Question]:
 
 def test_deer_output_parser(fixtures_dir: Path, qwen3_tokenizer: Any) -> None:
     lines = (fixtures_dir / "deer_output.jsonl").read_text(encoding="utf-8").splitlines()
-    rows = parse_deer_output(lines, _qs(), TokenCodec.from_tokenizer(qwen3_tokenizer), seed=0)
+    codec = TokenCodec.from_tokenizer(qwen3_tokenizer)
+    rows = parse_deer_output(lines, _qs(), codec, seed=0, save_raw=True)
     by = {r["qid"]: r for r in rows}
     assert by["t/0"]["extracted"] == "2" and by["t/0"]["correct"]  # lấy khung sau </think> cuối cùng
     assert by["t/1"]["extracted"] == "6" and not by["t/1"]["correct"]
     assert by["t/2"]["extracted"] is None and by["t/2"]["too_long"] == 1
     assert all(r["n_tokens"] > 0 for r in rows)
+    assert all(r["raw_token_source"] == "retokenized_deer_response" for r in rows)
+    assert all(r["raw_token_ids"] == codec.encode(r["raw_text"]) for r in rows)
+    assert "</think>" in by["t/0"]["raw_text"]
 
 
 def test_deer_dataset_has_problem_and_answer(tmp_path: Path) -> None:

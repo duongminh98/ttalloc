@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 
@@ -66,4 +67,4 @@ class EmpiricalCurves:
         curves = [cv for s, cv in self.by_q[qid].items() if s != exclude_seed]
         if not curves:
             return None
-        return np.mean([cv.at_many(bs) for cv in curves], axis=0)
+        return cast(np.ndarray, np.mean([cv.at_many(bs) for cv in curves], axis=0))

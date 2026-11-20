@@ -198,7 +198,7 @@ class BaselineCfg(_Cfg):
     deer_policy: str = "avg2"
     throughput_batch_sizes: list[int] = Field(default_factory=lambda: [8, 32, 128, 256])
     throughput_max_tokens: int = 4096
-    chunk: int = 512  # số request mỗi lần gọi generate, để ghi dần kết quả
+    chunk: int = Field(default=512, ge=1)  # số request mỗi lần gọi generate, để ghi dần kết quả
 
 
 class StudyCfg(_Cfg):

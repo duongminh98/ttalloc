@@ -18,6 +18,7 @@ Cách dùng (từ gốc repo):
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import sys
@@ -52,6 +53,30 @@ DEFAULT_QUERY: dict[str, Any] = {
 }
 
 ONSTART = r"""#!/bin/bash
+set -e
+cleanup_failed_start() {
+  if [ -n "${TTALLOC_DEADLINE_EPOCH:-}" ]; then
+    python3 - >> /root/onstart.log 2>&1 <<'PY'
+import os, time, urllib.error, urllib.request
+iid = os.environ['CONTAINER_ID']
+if not iid.isdigit():
+    raise ValueError('invalid instance ID')
+url = f'https://console.vast.ai/api/v0/instances/{iid}/'
+req = urllib.request.Request(url, method='DELETE', headers={'Authorization': 'Bearer ' + os.environ['VAST_API_KEY']})
+while True:
+    try:
+        with urllib.request.urlopen(req, timeout=15):
+            break
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            break
+    except OSError:
+        pass
+    time.sleep(5)
+PY
+  fi
+}
+trap cleanup_failed_start ERR
 cd /root
 python3 -m pip install -q "huggingface_hub>=0.25" > /root/onstart.log 2>&1
 python3 - >> /root/onstart.log 2>&1 <<'EOF'
@@ -61,8 +86,13 @@ p = hf_hub_download(os.environ["TTALLOC_HF_REPO"], "code/ttalloc-src.tar.gz", re
                     token=os.environ["HF_TOKEN"], force_download=True)
 tarfile.open(p).extractall("/root/ttalloc", filter="data")
 EOF
-cd /root/ttalloc && sed 's/\r$//' ops/vast/bootstrap.sh > /root/bootstrap.sh
-nohup bash /root/bootstrap.sh > /root/job.log 2>&1 &
+cd /root/ttalloc
+sed 's/\r$//' ops/vast/bootstrap.sh > /root/bootstrap.sh
+if [ -n "$TTALLOC_DEADLINE_EPOCH" ]; then
+  nohup python3 ops/vast/guard.py > /root/guard.log 2>&1 &
+else
+  nohup bash /root/bootstrap.sh > /root/job.log 2>&1 &
+fi
 """
 
 # Mã thoát của `watch`, để agent đang theo dõi biết phải làm gì.
@@ -130,7 +160,10 @@ def job_env(job: str, approved_by: str | None, self_destroy: bool, extra: list[s
     if missing:
         raise SystemExit(f"thiếu biến môi trường {missing}")
     if approved_by:
-        env["TTALLOC_APPROVED_BY"] = approved_by
+        if approved_by.isascii():
+            env["TTALLOC_APPROVED_BY"] = approved_by
+        else:
+            env["TTALLOC_APPROVED_BY_B64"] = base64.b64encode(approved_by.encode("utf-8")).decode("ascii")
     for kv in extra or []:  # --env TTALLOC_TRAIN_LIMIT=500 (p3_log, ADR-015)
         k, sep, v = kv.partition("=")
         if not sep or not k.startswith("TTALLOC_"):
@@ -316,7 +349,8 @@ def main() -> None:
         res = call("PUT", f"/asks/{a.offer}/", body)
         iid = res.get("new_contract")
         _save_state({"id": iid, "offer": a.offer, "job": a.job, "time": time.strftime("%Y-%m-%d %H:%M")})
-        print(json.dumps(res, indent=2))
+        safe = {k: v for k, v in res.items() if "key" not in k.lower() and "token" not in k.lower()}
+        print(json.dumps(safe, indent=2))
         print(f"máy {iid}: theo dõi bằng `vast.py watch {iid} --job {a.job} --destroy-when-done`")
     elif a.cmd == "status":
         for r in instances():

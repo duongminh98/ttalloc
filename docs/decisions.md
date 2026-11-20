@@ -133,6 +133,8 @@ Mỗi chỗ lệch đặc tả, mâu thuẫn hoặc chỗ chưa rõ được ghi
 - Hệ quả:
   - Thời gian ghi log giảm khoảng 50%. `c_ans_max` nhỏ hơn, nên phần dự trữ của quỹ và nhu cầu KV của mỗi chuỗi cũng nhỏ hơn.
   - Nhãn `y` có nghĩa là "nếu bắt trả lời ngay thì có đúng không". Model không được viết thêm bước nào để chốt đáp án; phần phương pháp phải nói rõ điều này.
+
+- Đối chiếu ngày 20/11/2026 trên 100 câu `val`, seed 0, với chuỗi dài thật (`runs/20261119-194301_study-answer-mode_3c9fbf102c27/`). Ở 2.512 điểm trong chuỗi, `full` và `short` không trích được đáp án lần lượt ở 97,77% và 1,07% số điểm. Ở 100 điểm kết thúc, hai tỉ lệ là 97% và 2%. Tỉ lệ cùng kết quả chấm lần lượt là 65,13% ở điểm trong chuỗi và 18% ở điểm kết thúc. Luật đề xuất tự động mốc 98% đưa ra `full`, trong khi phần lớn đầu ra `full` không có đáp án trích được với giới hạn của study. Số liệu củng cố cơ sở đã duyệt để dùng `short` theo ADR này.
   - Với model thứ hai ở P5, vẫn áp luật ở P5 bước 3, nhưng so với dạng `short` của model chính.
 
 ## ADR-015: Cỡ `train` theo learning curve
@@ -162,3 +164,62 @@ Mỗi chỗ lệch đặc tả, mâu thuẫn hoặc chỗ chưa rõ được ghi
   - Các công việc ghi log dùng máy bid (rẻ hơn khoảng 35%), vì logger chạy tiếp được sau khi bị ngắt. E5 (đo thời gian) dùng máy on-demand.
   - Lệnh tìm máy: `vast.py search --gpu <tên> --min-vram-gb <n>`.
 - Hệ quả: tiêu chí là tổng tiền, không phải số giờ. GPU nhanh hơn chỉ được chọn khi rẻ hơn tính theo token. Báo cáo E5 ghi rõ tên GPU.
+
+## ADR-017: Chuyển skill Claude Code sang Codex theo phạm vi repo
+- Công việc: chuyển ba skill `vast-run`, `phase-runner`, `kaggle-gpu-test` sang `.agents/skills/`, giữ bản Claude làm nguồn tham chiếu.
+- Bối cảnh: `vast-run` bản Claude ghi phê duyệt từ ngày 04/11/2026 cho mọi điểm dừng và tập kiểm tra, trái quy tắc dừng trong PLAN mục 0.4 và `AGENTS.md` hiện hành. `phase-runner` bản Claude còn yêu cầu không commit nếu chưa được hỏi, trong khi PLAN mục 0.2 quy định commit cho task implement. Công cụ `run_in_background` của Claude không có trong Codex.
+- Quyết định: bản Codex theo PLAN và các quyền thực sự đã có trong cuộc trò chuyện, không tự kế thừa lời khẳng định phê duyệt lịch sử của skill. Giữ đúng phạm vi phê duyệt còn hiệu lực để tránh hỏi lại không cần thiết. Thực hiện quy trình commit theo loại task của PLAN. Thay theo dõi nền bằng phiên `exec_command`/`write_stdin`, hoặc tiếp tục cell `functions.exec` bằng `functions.wait` khi có cell ID.
+- Hệ quả: các skill Codex chỉ phục vụ repo ttalloc; giữ lệnh vận hành, giới hạn sửa lỗi, bảo vệ thông tin xác thực và vòng đời thu hồi GPU. Việc chuyển skill không thuê máy, đẩy kernel, đẩy dữ liệu hoặc cấp quyền chạy thí nghiệm.
+
+## ADR-018: Miễn review trước lần kiểm tra thật trên Vast theo yêu cầu người dùng
+- Ngày: 17/11/2026.
+- Phạm vi: P0a, P1a và P1b, các điểm review đang được trao đổi trước khi chạy trên Vast.
+- Bối cảnh: PLAN mục 0.3 và mục 6 yêu cầu review độc lập; P0a chưa được thực hiện theo tiến độ hiện tại. Người dùng chỉ đạo trực tiếp: "bỏ qua công đoạn review đi, đánh dấu các phần đã xong". Chỉ đạo mới này thay yêu cầu review trong phạm vi nêu trên.
+- Quyết định: ghi trạng thái review là "được miễn theo yêu cầu người dùng", không ghi review đạt hoặc tạo báo cáo review giả. Chấp nhận P0 hoàn tất theo ngoại lệ do các bước chạy P0 đã ghi nhận xong và người dùng yêu cầu đánh dấu phần đã hoàn thành. Giữ trạng thái "mã xong" cho phần triển khai P1–P4; các lần chạy thật chưa thực hiện vẫn là chưa chạy. Không tự miễn các điểm review P2 trở đi.
+- Hệ quả: có thể chuẩn bị bước `gpu_check` trên Vast theo ADR-016 mà không chờ P0a/P1a/P1b. P1 chưa kết thúc vì còn baseline, equivalence, pilot và audit. Các kiểm tra tự động, phê duyệt thuê máy, GPU lớn, tập `test_*`, khóa cấu hình và kết thúc các phase tiếp theo vẫn áp dụng. Quyết định này không cấp quyền thuê máy hay chạy thí nghiệm.
+
+## ADR-019: Phạm vi và ngân sách thực hiện tối thiểu
+- Ngày: 17/11/2026.
+- Yêu cầu: người dùng thống nhất phương án tối thiểu khoảng 10 USD, chuẩn bị 15 USD và yêu cầu cập nhật kế hoạch thực hiện thực tế. Đây là duyệt kế hoạch, không phải duyệt thuê một máy cụ thể hoặc chạy tập kiểm tra.
+- Bối cảnh: PLAN và ADR-015 đã cho chọn cỡ train theo learning curve, nhưng kế hoạch thực hiện và RUNBOOK còn mặc định tăng tới 1.500 câu, dùng hệ số token phụ của dạng trả lời `full` và khẳng định 15 USD đủ cả đề tài. ADR-016 còn yêu cầu thuê thử cả RTX 3090 và A100. Các nội dung này chưa phản ánh phạm vi tối thiểu và `short` đã chọn ở ADR-014.
+- Quyết định:
+  - Một Qwen3-1.7B, bf16, dạng trả lời short; train sử dụng 500 câu × 4 seed, val 400 × 8, test_main 560 × 8, tổng 9.680 chuỗi ghi. Không thay pool 1.500 ID train đã khóa; lấy tập con qua `hash_order`/`--limit` có sẵn. 200 chuỗi pilot cùng log_hash được tái sử dụng.
+  - Giữ learning curve 250 → 500. Không tự tăng lên 1.000/1.500 câu; nếu tiêu chí ADR-015 yêu cầu tăng, dừng trước khi ghi thêm, cập nhật chi phí và xin duyệt. Không bỏ qua kết quả learning curve hoặc giảm seed/giới hạn chuỗi để ép vừa tiền.
+  - Gói tối thiểu kiểm tra một RTX 3090; thay yêu cầu thuê thêm A100 ở ADR-016 trong phạm vi này. Nguyên tắc so chi phí mỗi token vẫn giữ; đổi máy/loại GPU phải có lý do và quyền phù hợp.
+  - Giữ baseline, audit bộ chấm, kiểm định tương đương, hai study, E1–E4 trên CPU và E5 tối thiểu 6 lần chạy thật cùng đối chiếu baseline. Không suy diễn việc bỏ hàng thời gian GPU khỏi báo cáo thành hủy P4.
+  - Giá lập ngân sách gồm GPU và disk giả định 0,15 USD/giờ khi ghi, 0,24 USD/giờ cho việc theo yêu cầu; 6.300 token chuỗi chính, tỉ lệ token sinh 1,10, tốc độ hiệu dụng 800 token/giây, dự phòng ghi lại 10%. Kịch bản khoảng 40,62 giờ, 8,19 USD trước phí thanh toán; mục tiêu khoảng 10 USD và khoản chuẩn bị 15 USD không phải bảo đảm trọn gói. Dùng 26.000 đồng/USD để quy đổi kế hoạch (260.000 và khoảng 390.000–400.000 đồng), không coi là tỷ giá ngân hàng hiện hành.
+  - Đo lại pilot chuỗi dài và lấy giá offer thật trước ghi lớn. Khi tổng đã tiêu cộng phần còn lại dự kiến vượt khoản được duyệt/số dư, dừng chi tiêu để điều chỉnh. Destroy máy khi chờ xử lý CPU, chấm tay hoặc phê duyệt.
+  - P5, train trên 500, model thứ hai, so nhiều GPU và E5 mở rộng chưa nằm trong khoản này; cần giao việc và dự toán riêng.
+- Hệ quả: đồng bộ PLAN, kế hoạch thực hiện, RUNBOOK và skill Vast; giữ nguyên config, split, cổng và sổ tập kiểm tra. Các phê duyệt thuê máy/tác vụ lớn/khóa config/test vẫn thực hiện đúng phạm vi. Không có job GPU nào được chạy bởi thao tác cập nhật tài liệu này.
+
+## ADR-020: Cập nhật dự toán bằng đơn giá và throughput đã đo trên RTX 3090
+- Ngày: 18/11/2026.
+- Yêu cầu: dùng thông số `gpu_check` vừa chạy để ước tính lại thời gian/chi phí theo kế hoạch.
+- Bối cảnh: ADR-019 giả định máy ghi 0,15 USD/giờ và logger 800 token/giây. Offer đã thuê thực tế là 0,234444 USD/giờ gồm 60 GB disk, mạng 0,0065104 USD/GB mỗi chiều. Benchmark trên val giới hạn 4.096 token/câu đo 680,60/1.577,75/2.168,91/2.296,39 token/giây ở lô 8/32/128/256; đây không phải phép đo logger có probe/answer trên chuỗi tối đa 32.768 token.
+- Quyết định: lập kịch bản dùng giá đã thuê cho mọi đợt tương lai, không giả định mua được giá interruptible cũ. Giữ độ dài 6.300, hệ số token sinh 1,10, logger 800 token/giây và dự phòng chạy lại 10% làm giả định cơ sở chưa được pilot xác nhận; thêm các kịch bản 500/1.200 token/giây và chuỗi dài 10.000 token. Không chia thời gian mọi job cho throughput benchmark cao nhất. Giữ các quỹ baseline/equivalence, study và E5 cũ vì chưa có số đo thay thế; thời gian CPU, chấm tay, review và viết luận chưa được tính như số đã đo.
+- Kết quả: tổng cơ sở 40,62 giờ GPU / 10,28 USD, trong đó còn 40,22 giờ / 10,18 USD; đã chi khoảng 0,103731 USD theo chênh lệch credit sau destroy (có thể cập nhật trễ). Dự phòng mạng tương lai 0,75 USD; pilot 200 chuỗi nằm trong tổng 9.680 chuỗi log, không đếm lại. Giá mới làm tổng tăng so với kịch bản lịch sử 8,19 USD. Phép tính chi tiết ở kế hoạch thực hiện mục 3.3.1.
+- Hệ quả: không đổi scope/config/split/định nghĩa token hoặc bất biến, không nạp tiền/thuê máy/chạy thêm. Mốc khoảng 10 USD và chuẩn bị 15 USD vẫn là mục tiêu có điều kiện; cần pilot dài và offer mới trước khi duyệt ghi lớn. Không coi các kịch bản là khoảng tin cậy hoặc cam kết đủ tiền.
+
+## ADR-021: P1 có checkpoint, tự thu hồi và audit AI theo ủy quyền trực tiếp
+- Ngày: 18/11/2026.
+- Người dùng duyệt toàn P1, quyền dùng test_main, tổng P1 tối đa 3,25 USD/12 giờ, yêu cầu tự lưu/xóa máy khi xong hoặc có rủi ro vượt hạn mức; sau đó yêu cầu AI tự audit 100 mẫu và báo cáo. Đây là quyền thực hiện, không phải khẳng định P1 đã đạt.
+- Checkpoint Full/DEER theo nhóm 32 câu; equivalence lưu riêng phía full/segmented; kiểm checksum/config/khóa câu và không sinh lại khóa đã hoàn tất. Chạy tiếp tạo run mới. DEER vẫn dùng repo/commit/script/profile chính thức, tách nhóm đầu vào để có đầu ra sớm; ghi chi phí khởi tạo mỗi nhóm và config_hash, không chọn nhóm theo kết quả. Không chọn tham số phương pháp theo test.
+- `p1_safe.yaml` chỉ đổi thông số vận hành: baseline.chunk=32, online.max_num_seqs=32, log.window=32, log.flush_every=8. Kiểm thử xác nhận log_hash bằng qwen3.yaml; không đổi dtype, lời nhắc, sampling, split, seed hoặc token limits. Không thay định nghĩa token/bất biến.
+- Supervisor phía GPU giới hạn epoch tuyệt đối, credit giảm và thời gian thuê ước tính, chừa biên 0,25 USD và thời gian sync cuối; kiểm tra tiến triển thật từ generation/checkpoint. Đồng bộ bị giới hạn thời gian, lỗi đồng bộ không cản destroy; local monitor là lớp dự phòng. API/thu phí có thể trễ, không coi đây là cam kết trần chính xác tới từng cent khi dịch vụ lỗi.
+- Dừng khi baseline MATH-500 lệch quá 2 điểm phần trăm so với 85,6%, equivalence chưa đạt, lỗi lệnh hoặc mất đồng bộ; không tự tăng seed, đổi ngưỡng, chạy lại test để tìm kết quả tốt hơn. Khi không có vấn đề, tiếp tục pilot/validate/hai study trong hạn mức còn lại. Không tự chạy P2.
+- Ngoại lệ theo chỉ đạo mới: kiểm tra 100 mẫu do AI đối chiếu độc lập với đáp án chuẩn thay phần người dùng chấm tay. Ghi rõ là AI audit và lưu từng nhận định, không gọi là kiểm chứng độc lập bởi con người. Chỉ báo hoàn thành P1 khi mọi tiêu chí thực đo còn lại đạt; nếu chưa đạt thì báo kết quả/giới hạn thực tế.
+
+
+## ADR-022: Kh?c b? ch?m khi ??i chi?u baseline DEER ? ngo?i l? Full ?? ???c duy?t
+- Task: P1.T5; y?u c?u ng??i d?ng ng?y 18/11/2026 ??i chi?u c?u h?nh/c?ch ch?m v? xem kh? n?ng ti?p t?c P1.
+- B?ng ch?ng: `docs/reports/P1-DEER-comparison-2026-11-18.md`; `runs/p1-deer-comparison-20261118/`. ??/gold 500/500 kh?p DEER; prompt d?ng l?i 500/500 kh?p; greedy/16.384 kh?p m? t? b?i. Ch?m l?i nguy?n b?n DEER tr?n v?n b?n ?? l?u cho 435/500 (87,0%), so v?i `grade` 441/500 (88,2%); 8 nh?n ??i, r?ng 6 c?u (1,2 ?i?m). Hai l??t c?/kh?ng timeout tr?ng 500/500 nh?n.
+- M?u thu?n: PLAN P1.T5 y?u c?u `grade` nh?ng so ?i?m v?i c?ng b? d?ng b? ch?m kh?c. Kh?ng t? chuy?n c?ng sang b? ch?m DEER sau khi th?y k?t qu?. S?u c?u thi?u ph?n suy lu?n tr??c think-end n?n ?i?m DEER tr?n raw response ch?a bi?t (gi?i h?n do thi?u d? li?u 87,0?88,2%); kh?ng tuy?n b? c?ng ??t b?ng ?i?m 87,0%.
+- Quy?t ??nh hi?n h?nh: gi? nguy?n PLAN, config/seed, c?ng d?ng v? k?t qu? g?c; kh?ng thu? m?y, kh?ng sinh l?i test, kh?ng ch?y P2. M? ch?m upstream kh?ng s?a; c?ng khai l?p t??ng th?ch hai phi?n b?n ANTLR do requirements g?c xung ??t.
+- ?? xu?t ?ang ch? ng??i d?ng: ch?p nh?n ngo?i l? t?i l?p Full c? gi?i tr?nh ?? ti?p t?c P1; b?o song song ?i?m nghi?n c?u `grade` v? ?i?m ??i chi?u t?c gi?, kh?ng l?y b? ch?m t?c gi? thay ch?n l? ng? ngh?a. L?u raw output cho l??t sau. ??y ch?a ph?i ph? duy?t ngo?i l?, ho?n t?t phase ho?c gia h?n ng?n s?ch/deadline thu?.
+
+- C?p nh?t ph? duy?t 18/11/2026: ng??i d?ng x?c nh?n ?Oke, duy?t ngo?i l? n?y nh?. Gi? c? hai s? trong b?o c?o, r?i t?m offer GPU v? b?o chi ph? ch?y ti?p ph?n P1 c?n thi?u cho m?nh duy?t.? Ngo?i l? ?p d?ng cho Full MATH-500 ?? ch?y (88,2% theo grade; 87,0% theo DEER tr?n v?n b?n ?? l?u); kh?ng s?a ?i?m th?nh ??t theo c?ng s? h?c, kh?ng sinh l?i Full. ???c chu?n b? ph?n ti?p theo nh?ng ch?a thu? m?y. C?c c?ng DEER/equivalence v? ?i?u ki?n k?t th?c P1 gi? nguy?n. C?a s? 12 gi? c? ?? h?t 13:00:31 ng?y 18/11; c?a s? m?i ph?i n?m trong ?? ngh? thu? m?i, kh?ng t? gia h?n. Gi? chi ph? P1 ?? ghi nh?n 0,2797374973 USD trong tr?n c?ng d?n 3,25 USD.
+## ADR-023: Nới biên độ chính xác cho quyết định chạy tiếp P1
+
+- Ngày 20/11/2026, người dùng yêu cầu nới cổng vừa đủ và chạy nốt P1. Áp dụng biên ±3,1 điểm phần trăm cho quyết định chạy tiếp từ đúng kết quả 400 câu `val` × 4 seed, cấu hình `3c9fbf102c27`. Đây là mức làm tròn lên theo bước 0,1 điểm phần trăm từ biên cần thiết 3,0625. Biên độ dài vẫn là ±5%.
+- CI90 độ chính xác từ −3,0625 đến +0,1875 điểm phần trăm. CI90 độ dài từ −4,7700% đến +1,6381%. Hai CI nằm trong biên dùng cho quyết định chạy tiếp. Báo cáo gốc `runs/20261119-153426_equivalence_3c9fbf102c27/equivalence_4seed.json` giữ `pass: false` theo biên định trước ±3 điểm phần trăm. Biên mới chọn sau khi xem kết quả, vì vậy chỉ dùng cho quyết định vận hành P1 này. Khi báo cáo thực nghiệm, công bố cả hai biên và kết quả theo biên định trước.
+- Job `p1_finish` xác minh checksum báo cáo, tính lại từ các checkpoint của hai lượt và ghi quyết định vào `stages.json` trước khi chạy pilot, kiểm tra log và hai study. Việc xác nhận hoàn tất P1 căn cứ vào các đầu ra đó và ngoại lệ này. Quyết định này có phạm vi P1.

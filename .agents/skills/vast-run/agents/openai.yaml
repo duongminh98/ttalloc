@@ -1,0 +1,4 @@
+interface:
+  display_name: "ttalloc · Vast GPU"
+  short_description: "Chạy, theo dõi và dọn công việc GPU trên Vast.ai"
+  default_prompt: "Dùng $vast-run để chuẩn bị và chạy công việc GPU ttalloc được yêu cầu, tuân thủ các điểm phê duyệt trong PLAN."
