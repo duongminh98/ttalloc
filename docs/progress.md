@@ -1,6 +1,8 @@
 # Tiến độ
 
-**20/11/2026 — Hoàn tất các lượt chạy P1.** Phiên `p1-cloud-20261120-003133` dùng lại 200 log pilot hợp lệ và hoàn tất cả hai study trên 100 câu `val`, seed 0. ADR-014 ghi kết quả `answer-mode` trên 2.612 bản ghi và giải thích cách áp dụng quy tắc chọn dạng trả lời. Trong `probe-noise`, hai lời nhắc cho đáp án khác nhau ở 36,94% trong 2.182 điểm. Tỉ lệ giảm từ 51,96% trong 20% đầu chuỗi xuống 17,90% trong 20% cuối. Tương quan độ tự tin là 0,843. Đã tính lại các tỉ lệ từ CSV đồng bộ. Biên nhận `runs/guard-61504389.json` ghi `done` lúc 04:00:17 giờ Việt Nam. Vast xác nhận 0 instance và đã chi 4,523524 USD cộng dồn tại thời điểm kiểm tra. Kết quả equivalence theo biên định trước và ngoại lệ chạy tiếp đã ghi ở ADR-023. P2 chờ xác nhận kết thúc P1 và duyệt ghi lớn.
+**20/11/2026 — Người dùng xác nhận kết thúc P1.** Các lượt chạy P1 đã hoàn tất. Hồ sơ kết thúc áp dụng ngoại lệ tái lập Full MATH-500 theo ADR-022 và quyết định nới biên để chạy tiếp theo ADR-023. Kết quả equivalence theo biên định trước ±3 điểm phần trăm vẫn được ghi là chưa đạt. P2 chờ phê duyệt riêng cho lượt ghi dữ liệu lớn.
+
+**20/11/2026 — Hoàn tất các lượt chạy P1.** Phiên `p1-cloud-20261120-003133` dùng lại 200 log pilot hợp lệ và hoàn tất cả hai study trên 100 câu `val`, seed 0. ADR-014 ghi kết quả `answer-mode` trên 2.612 bản ghi và giải thích cách áp dụng quy tắc chọn dạng trả lời. Trong `probe-noise`, hai lời nhắc cho đáp án khác nhau ở 36,94% trong 2.182 điểm. Tỉ lệ giảm từ 51,96% trong 20% đầu chuỗi xuống 17,90% trong 20% cuối. Tương quan độ tự tin là 0,843. Đã tính lại các tỉ lệ từ CSV đồng bộ. Biên nhận `runs/guard-61504389.json` ghi `done` lúc 04:00:17 giờ Việt Nam. Vast xác nhận 0 instance và đã chi 4,523524 USD cộng dồn tại thời điểm kiểm tra. Kết quả equivalence theo biên định trước và ngoại lệ chạy tiếp đã ghi ở ADR-023.
 
 **20/11/2026 — Hoàn tất pilot và kiểm tra log P1.** Đã đồng bộ 100 câu `val` × 2 seed, 5.328 điểm, `pass_rate = 100%`. Độ dài chuỗi trung bình 5.614,63 token. `token_ratio = 1,06374`. Stage pilot mất 3.908 giây, tương đương khoảng 306 token sinh/giây tính trên toàn stage. Instance `61492898` ở Đài Loan tải được trọng số sau khi tắt Xet. Sau khi lưu kết quả kiểm tra log, Hugging Face giới hạn tạo commit với HTTP 429. Guard thu hồi máy và Vast xác nhận còn 0 instance, đã chi 4,235822 USD cộng dồn tại thời điểm kiểm tra. Phiên `p1-cloud-20261120-003133` có thể tiếp tục từ `answer-mode` và `probe-noise` bằng trạng thái đã đồng bộ.
 
@@ -77,7 +79,7 @@ Audit và báo cáo đã được kiểm tra tính toàn vẹn, lưu local/HF; b
 | P1.T6 | chạy xong, tiếp tục theo ADR-023 | | CI90 độ chính xác từ −3,0625 đến +0,1875 điểm phần trăm trên 400 câu `val` × 4 seed. Biên định trước ±3 điểm chưa đạt. |
 | P1.T7–T11 | chạy xong | | 200 chuỗi pilot đều hợp lệ. Hai study đã đồng bộ và đối chiếu với CSV. Dạng `short` đã được duyệt tại ADR-014. |
 | P1a, P1b (review) | được miễn | | Người dùng yêu cầu ngày 17/11/2026 theo ADR-018. |
-| P1, bước chạy 1–5 | chạy xong, chờ xác nhận phase | | Kết quả, ngoại lệ và biên nhận GPU ở các mục tiến độ trên. |
+| P1, bước chạy 1–5 | hoàn tất, đã xác nhận kết thúc | | Người dùng xác nhận ngày 20/11/2026. Kết quả, ngoại lệ và biên nhận GPU ở các mục tiến độ trên. |
 | P2.T1–T6 | mã xong | | Sự kiện, dãy chuẩn, đặc trưng, bộ ước lượng, rho, đánh giá |
 | P2.T7–T8 | mã xong | | Quỹ, bộ bảo vệ (ADR-012), Runner; property test I1–I3 |
 | P2.T9–T11 | mã xong | | LoggedSource, bảng tính sẵn, RhoProvider, B2/M2/M3 |
