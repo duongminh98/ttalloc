@@ -1,6 +1,6 @@
 # Tiến độ
 
-**20/11/2026 — Người dùng xác nhận kết thúc P1.** Các lượt chạy P1 đã hoàn tất. Hồ sơ kết thúc áp dụng ngoại lệ tái lập Full MATH-500 theo ADR-022 và quyết định nới biên để chạy tiếp theo ADR-023. Kết quả equivalence theo biên định trước ±3 điểm phần trăm vẫn được ghi là chưa đạt. P2 chờ phê duyệt riêng cho lượt ghi dữ liệu lớn.
+**20/11/2026 — Người dùng xác nhận kết thúc P1.** Các lượt chạy P1 đã hoàn tất. Hồ sơ kết thúc áp dụng ngoại lệ tái lập Full MATH-500 theo ADR-022 và quyết định nới biên để chạy tiếp theo ADR-023. Kết quả equivalence theo biên định trước ±3 điểm phần trăm vẫn được ghi là chưa đạt. P2 chờ phê duyệt riêng cho lượt ghi dữ liệu lớn. [Báo cáo tổng kết P1](reports/P1-final-report-2026-11-20.md)
 
 **20/11/2026 — Hoàn tất các lượt chạy P1.** Phiên `p1-cloud-20261120-003133` dùng lại 200 log pilot hợp lệ và hoàn tất cả hai study trên 100 câu `val`, seed 0. ADR-014 ghi kết quả `answer-mode` trên 2.612 bản ghi và giải thích cách áp dụng quy tắc chọn dạng trả lời. Trong `probe-noise`, hai lời nhắc cho đáp án khác nhau ở 36,94% trong 2.182 điểm. Tỉ lệ giảm từ 51,96% trong 20% đầu chuỗi xuống 17,90% trong 20% cuối. Tương quan độ tự tin là 0,843. Đã tính lại các tỉ lệ từ CSV đồng bộ. Biên nhận `runs/guard-61504389.json` ghi `done` lúc 04:00:17 giờ Việt Nam. Vast xác nhận 0 instance và đã chi 4,523524 USD cộng dồn tại thời điểm kiểm tra. Kết quả equivalence theo biên định trước và ngoại lệ chạy tiếp đã ghi ở ADR-023.
 
